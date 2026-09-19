@@ -499,6 +499,126 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   line-height: 1.6;
 }
 
+
+/* ============================================================
+   🎚️ SLIDER DE VELOCIDAD DE VOZ
+   ============================================================ */
+.speed-control {
+  background: #f9fafb;
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-weight: 600;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+.speed-control .speed-label {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.speed-control input[type="range"] {
+  flex: 1;
+  min-width: 200px;
+  height: 12px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(90deg, #a7f3d0, #34d399, #10b981);
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.speed-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  border: 4px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(124,58,237,0.4);
+  cursor: pointer;
+}
+.speed-control input[type="range"]::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+  border: 4px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(124,58,237,0.4);
+  cursor: pointer;
+}
+.speed-control .speed-value {
+  min-width: 70px;
+  text-align: center;
+  background: var(--primary);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Durante el juego: control compacto */
+.speed-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px auto;
+  max-width: 500px;
+  padding: 10px 16px;
+  background: #f9fafb;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.speed-inline input[type="range"] {
+  flex: 1;
+  height: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(90deg, #a7f3d0, #10b981);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.speed-inline input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  background: var(--primary);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(124,58,237,0.4);
+  cursor: pointer;
+}
+.speed-inline input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  background: var(--primary);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.speed-inline .speed-value {
+  min-width: 60px;
+  text-align: center;
+  background: var(--primary);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
 </style>
 </head>
 <body>
@@ -527,6 +647,10 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
       <span class="mode-emoji">🏆</span>
       <div class="mode-label">Master Mode</div>
       <div class="mode-count" id="master-progress-count">0/2</div>
+    </button>
+    <button class="mode-tile" id="tile-stars">
+      <span class="mode-emoji">⭐</span>
+      <div class="mode-label">Stars</div>
     </button>
     <button class="mode-tile" id="tile-rewards">
       <span class="mode-emoji">🎁</span>
@@ -735,6 +859,12 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
       <span id="word-text">apple</span>
       <button id="btn-play-audio" class="btn-icon">🔊</button>
     </div>
+    <div class="speed-inline">
+      <span>🐢</span>
+      <input type="range" id="speed-slider-game" min="0.5" max="1.5" step="0.05" value="0.8">
+      <span>🐇</span>
+      <span class="speed-value" id="speed-value-game">0.80x</span>
+    </div>
     <input type="text" id="answer-input" class="answer-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button id="btn-check" class="btn-success big">✅ CHECK</button>
   </div>
@@ -889,6 +1019,18 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   <div class="tab-content" data-tab-content="voice">
     <h3>🎙️ Voz del juego</h3>
     <p style="color:var(--text-soft); margin-bottom:20px;">Elige la voz con la que se leerán las palabras en inglés. Pulsa 🔊 para escuchar una muestra.</p>
+    
+    <h4>🎚️ Velocidad de la voz</h4>
+    <p style="color:var(--text-soft); font-size:0.9rem; margin-bottom:12px;">Ajusta la velocidad a la que se leen las palabras. Más lento ayuda a los principiantes.</p>
+    <div class="speed-control">
+      <span class="speed-label">🐢</span>
+      <input type="range" id="speed-slider-parent" min="0.5" max="1.5" step="0.05" value="0.8">
+      <span class="speed-label">🐇</span>
+      <span class="speed-value" id="speed-value-parent">0.80x</span>
+    </div>
+    <button id="btn-test-speed" class="btn-secondary" style="margin-bottom:24px;">🔊 Probar velocidad</button>
+    
+    <h4>Voces disponibles</h4>
     <div id="voice-list" class="voice-list"></div>
     <p style="color:var(--text-soft); font-size:0.85rem; margin-top:12px;">
       💡 <strong>Nota:</strong> las voces disponibles dependen del navegador y del dispositivo. En iPad puede que Safari solo ofrezca 1-2 voces.
@@ -1251,13 +1393,18 @@ const Speech = (() => {
     setTimeout(pickVoice, 3000);
   }
 
+  function getRate() {
+    const saved = parseFloat(localStorage.getItem('spellQuest_speechRate'));
+    return (isNaN(saved) ? 0.8 : saved);
+  }
+
   function sayWord(text) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = voice?.lang || 'en-GB';
-    u.rate = 0.8;
-    u.pitch = 1.1;  // ← un pelín más agudo (suena más femenino si la voz es neutra)
+    u.rate = getRate();
+    u.pitch = 1.1;
     if (voice) u.voice = voice;
     window.speechSynthesis.speak(u);
   }
@@ -2809,11 +2956,43 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHome();
   ParentPanel.renderAvatarPicker();
 
-  const starsBtn = document.createElement('button');
-  starsBtn.className = 'stars-btn';
-  starsBtn.textContent = '⭐ My Stars';
-  starsBtn.addEventListener('click', () => { Audio.click(); Stars.open(); });
-  document.body.appendChild(starsBtn);
+  // ============================================================
+  // 🎚️ SLIDERS DE VELOCIDAD DE VOZ
+  // ============================================================
+  const savedRate = parseFloat(localStorage.getItem('spellQuest_speechRate'));
+  const initialRate = isNaN(savedRate) ? 0.8 : savedRate;
+
+  function updateSpeedUI(rate) {
+    const val = rate.toFixed(2) + 'x';
+    document.getElementById('speed-slider-parent').value = rate;
+    document.getElementById('speed-slider-game').value = rate;
+    document.getElementById('speed-value-parent').textContent = val;
+    document.getElementById('speed-value-game').textContent = val;
+  }
+
+  function setSpeed(rate) {
+    localStorage.setItem('spellQuest_speechRate', rate);
+    updateSpeedUI(rate);
+  }
+
+  // Inicializar
+  updateSpeedUI(initialRate);
+
+  // Slider del panel de padres
+  document.getElementById('speed-slider-parent').addEventListener('input', (e) => {
+    setSpeed(parseFloat(e.target.value));
+  });
+
+  // Slider durante el juego
+  document.getElementById('speed-slider-game').addEventListener('input', (e) => {
+    setSpeed(parseFloat(e.target.value));
+  });
+
+  // Botón de probar velocidad
+  document.getElementById('btn-test-speed').addEventListener('click', () => {
+    Audio.click();
+    Speech.say('apple, banana, elephant');
+  });
 
   // Home tiles
   document.getElementById('tile-week').addEventListener('click', () => {
@@ -2830,6 +3009,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tile-master').addEventListener('click', () => {
     Audio.click();
     Master.menu();
+  });
+  document.getElementById('tile-stars').addEventListener('click', () => {
+    Audio.click();
+    Stars.open();
   });
   document.getElementById('tile-rewards').addEventListener('click', () => {
     Audio.click();
