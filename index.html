@@ -633,6 +633,34 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   letter-spacing: 0.3px;
 }
 
+
+/* ============================================================
+   🔒 PIN HINT
+   ============================================================ */
+.pin-hint-box {
+  background: #fef3c7;
+  border-left: 5px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  margin: 16px auto;
+  max-width: 320px;
+  text-align: left;
+  font-size: 1rem;
+  color: #92400e;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.pin-hint-box.hint {
+  background: #ede9fe;
+  border-left-color: var(--primary);
+  color: var(--primary-dark);
+}
+.pin-hint-box strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
 </style>
 </head>
 <body>
@@ -943,13 +971,14 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
 <!-- 🔒 PIN -->
 <section id="screen-pin" class="screen">
   <div class="pin-box">
-    <h2>🔒 Parent Panel</h2>
-    <p class="subtitle">Enter PIN:</p>
+    <h2>🔒 Panel de Padres</h2>
+    <p class="subtitle">Introduce el PIN:</p>
     <input type="password" id="pin-input" class="pin-input" maxlength="4" inputmode="numeric">
-    <p id="pin-error" class="error-text hidden">❌ Wrong PIN</p>
-    <button id="btn-pin-submit" class="btn-primary">Enter</button>
+    <p id="pin-error" class="error-text hidden">❌ PIN incorrecto</p>
+    <div id="pin-hint-container"></div>
+    <button id="btn-pin-submit" class="btn-primary">Entrar</button>
     <br><br>
-    <button class="btn-back" data-back>← Back</button>
+    <button class="btn-back" data-back>← Volver</button>
   </div>
 </section>
 
@@ -1212,7 +1241,13 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <h3>⚙️ Ajustes</h3>
     <label>PIN del panel (4 dígitos):</label>
     <input type="text" id="new-pin-input" maxlength="4" inputmode="numeric" placeholder="1234">
-    <button id="btn-save-pin" class="btn-primary">💾 Guardar PIN</button>
+    <label>💡 Pista del PIN (opcional):</label>
+    <input type="text" id="pin-hint-input" maxlength="60" placeholder="Ej: El cumple de mamá">
+    <p style="color:var(--text-soft); font-size:0.85rem; margin-bottom:12px;">
+      Esta pista aparecerá en la pantalla de PIN para recordarte la contraseña.<br>
+      No pongas el PIN aquí directamente, solo una pista que solo tú entiendas.
+    </p>
+    <button id="btn-save-pin" class="btn-primary">💾 Guardar PIN y pista</button>
     <hr>
     <h3>🔄 Reset global</h3>
     <p style="color:var(--text-soft); font-size:0.9rem; margin-bottom:12px;">Borra puntos, insignias, progreso e historial de TODOS los niños. Las semanas y premios se mantienen.</p>
@@ -2595,6 +2630,19 @@ const ParentPanel = (() => {
     UI.show('screen-pin');
     document.getElementById('pin-input').value = '';
     document.getElementById('pin-error').classList.add('hidden');
+    // Mostrar hint según configuración
+    const container = document.getElementById('pin-hint-container');
+    if (container) {
+      container.innerHTML = '';
+      const currentPin = state.settings.parentPIN || '1234';
+      const isDefault = currentPin === '1234';
+      const hint = (state.settings.pinHint || '').trim();
+      if (isDefault) {
+        container.innerHTML = '<div class="pin-hint-box"><strong>ℹ️ PIN por defecto</strong>El PIN actual es <strong>1234</strong>. Cámbialo en Ajustes cuando entres.</div>';
+      } else if (hint) {
+        container.innerHTML = '<div class="pin-hint-box hint"><strong>💡 Pista del PIN</strong>' + hint + '</div>';
+      }
+    }
     setTimeout(()=>document.getElementById('pin-input').focus(), 100);
   }
   function submitPin() {
@@ -2743,6 +2791,8 @@ const ParentPanel = (() => {
     });
 
     document.getElementById('new-pin-input').value = state.settings.parentPIN || '1234';
+    const pinHintEl = document.getElementById('pin-hint-input');
+    if (pinHintEl) pinHintEl.value = state.settings.pinHint || '';
     
     // Renderizar el selector de voces (por si hay voces nuevas cargadas)
     if (typeof VoiceManager !== 'undefined') VoiceManager.render();
@@ -2899,7 +2949,12 @@ const ParentPanel = (() => {
   function savePin() {
     const pin = document.getElementById('new-pin-input').value.trim();
     if (pin.length !== 4 || !/^\d+$/.test(pin)) { UI.toast('PIN debe ser 4 dígitos', 'error'); return; }
-    state.settings.parentPIN = pin; saveState(); UI.toast('✅ PIN guardado', 'success');
+    state.settings.parentPIN = pin;
+    // Guardar pista
+    const hintEl = document.getElementById('pin-hint-input');
+    if (hintEl) state.settings.pinHint = hintEl.value.trim();
+    saveState();
+    UI.toast('✅ PIN y pista guardados', 'success');
   }
   function resetProgressAll() {
     if (!confirm('¿Resetear el progreso, puntos, insignias e historial de TODOS los niños?')) return;
