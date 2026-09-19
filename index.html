@@ -416,6 +416,89 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   box-shadow: 0 0 0 4px rgba(124,58,237,0.15);
 }
 
+
+/* ============================================================
+   🎙️ VOZ - Selector de voz
+   ============================================================ */
+.voice-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.voice-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: #f9fafb;
+  border: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+  font-size: 1rem;
+}
+.voice-item:hover {
+  background: #ede9fe;
+  transform: translateY(-2px);
+}
+.voice-item.selected {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  border-color: var(--success-dark);
+  box-shadow: 0 3px 0 var(--success-dark);
+}
+.voice-item .voice-radio {
+  font-size: 1.4rem;
+  width: 28px;
+  text-align: center;
+}
+.voice-item .voice-info {
+  flex: 1;
+}
+.voice-item .voice-name {
+  font-weight: 700;
+  color: var(--primary);
+}
+.voice-item .voice-lang {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin-top: 2px;
+}
+.voice-item .voice-play {
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 14px;
+  font-size: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 var(--primary-dark);
+  border: none;
+  cursor: pointer;
+}
+.voice-item.selected .voice-play {
+  background: var(--success-dark);
+  box-shadow: 0 3px 0 #047857;
+}
+.voice-badge {
+  display: inline-block;
+  background: var(--warning);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.voice-empty {
+  text-align: center;
+  padding: 40px 20px;
+  background: #fef3c7;
+  border-radius: var(--radius-sm);
+  color: #92400e;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
 </style>
 </head>
 <body>
@@ -734,6 +817,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <button class="tab" data-tab="points">⭐ Puntos</button>
     <button class="tab" data-tab="rewards">🎁 Premios</button>
     <button class="tab" data-tab="reports">📊 Informes</button>
+    <button class="tab" data-tab="voice">🎙️ Voz</button>
     <button class="tab" data-tab="backup">💾 Backup</button>
     <button class="tab" data-tab="guide">❓ Ayuda</button>
     <button class="tab" data-tab="settings">⚙️ Ajustes</button>
@@ -800,6 +884,17 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   <div class="tab-content" data-tab-content="reports">
     <h3>📊 Informes por niño</h3>
     <div id="parent-reports"></div>
+  </div>
+
+  <div class="tab-content" data-tab-content="voice">
+    <h3>🎙️ Voz del juego</h3>
+    <p style="color:var(--text-soft); margin-bottom:20px;">Elige la voz con la que se leerán las palabras en inglés. Pulsa 🔊 para escuchar una muestra.</p>
+    <div id="voice-list" class="voice-list"></div>
+    <p style="color:var(--text-soft); font-size:0.85rem; margin-top:12px;">
+      💡 <strong>Nota:</strong> las voces disponibles dependen del navegador y del dispositivo. En iPad puede que Safari solo ofrezca 1-2 voces.
+      Si no aparece ninguna voz en inglés, ve a <strong>Ajustes del sistema → Accesibilidad → Leer y pronunciar → Voces</strong> y descarga voces en inglés.
+    </p>
+    <button id="btn-reset-voice" class="btn-secondary" style="margin-top:12px;">🔄 Usar voz por defecto (auto)</button>
   </div>
 
   <div class="tab-content" data-tab-content="backup">
@@ -1092,19 +1187,81 @@ const Audio = (() => {
    ============================================================ */
 const Speech = (() => {
   let voice = null;
-  function pickVoice() {
-    const voices = window.speechSynthesis.getVoices();
-    voice = voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en'));
+  let allVoices = [];
+
+  // Voces femeninas conocidas (iOS / iPadOS / macOS / Android / Windows)
+  const FEMALE_NAMES = [
+    'samantha', 'karen', 'moira', 'tessa', 'serena', 'kate', 'fiona',
+    'victoria', 'allison', 'ava', 'susan', 'zoey', 'nicky', 'martha',
+    'zira', 'aria', 'jenny', 'female', 'mujer', 'woman', 'femme'
+  ];
+  // Voces masculinas conocidas (a evitar si hay alternativa)
+  const MALE_NAMES = [
+    'daniel', 'alex', 'fred', 'tom', 'oliver', 'aaron', 'arthur',
+    'rishi', 'gordon', 'lee', 'xavier', 'male', 'hombre', 'man', 'homme'
+  ];
+
+  function isFemale(v) {
+    const n = (v.name || '').toLowerCase();
+    if (FEMALE_NAMES.some(f => n.includes(f))) return true;
+    if (MALE_NAMES.some(m => n.includes(m))) return false;
+    return null; // desconocido
   }
-  if ('speechSynthesis' in window) { pickVoice(); window.speechSynthesis.onvoiceschanged = pickVoice; }
+
+  function pickVoice() {
+    allVoices = window.speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+    
+    if (allVoices.length === 0) { voice = null; return; }
+    
+    // Prioridad 1: la voz elegida manualmente por el padre
+    const preferred = localStorage.getItem('spellQuest_preferredVoice');
+    if (preferred) {
+      const found = allVoices.find(v => v.name === preferred);
+      if (found) {
+        voice = found;
+        console.log('🔊 Voz elegida manualmente:', voice.name, '(' + voice.lang + ')');
+        return;
+      }
+    }
+
+    // 1) Primero intentamos una voz FEMENINA en inglés británico
+    let picked = allVoices.find(v => v.lang === 'en-GB' && isFemale(v) === true);
+    // 2) Luego FEMENINA en inglés americano
+    if (!picked) picked = allVoices.find(v => v.lang === 'en-US' && isFemale(v) === true);
+    // 3) Cualquier FEMENINA en cualquier inglés
+    if (!picked) picked = allVoices.find(v => isFemale(v) === true);
+    // 4) Cualquier voz en inglés británico (aunque sea masculina o desconocida)
+    if (!picked) picked = allVoices.find(v => v.lang === 'en-GB');
+    // 5) Cualquier voz en inglés americano
+    if (!picked) picked = allVoices.find(v => v.lang === 'en-US');
+    // 6) Último recurso: la primera disponible
+    if (!picked) picked = allVoices[0];
+
+    voice = picked;
+    console.log('🔊 Voz elegida:', voice?.name, '(' + voice?.lang + ')');
+  }
+
+  if ('speechSynthesis' in window) {
+    // getVoices() puede tardar en cargar; forzamos varias llamadas
+    pickVoice();
+    window.speechSynthesis.onvoiceschanged = pickVoice;
+    // A veces en iPad las voces llegan tarde:
+    setTimeout(pickVoice, 500);
+    setTimeout(pickVoice, 1500);
+    setTimeout(pickVoice, 3000);
+  }
+
   function sayWord(text) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-GB'; u.rate = 0.8; u.pitch = 1.05;
+    u.lang = voice?.lang || 'en-GB';
+    u.rate = 0.8;
+    u.pitch = 1.1;  // ← un pelín más agudo (suena más femenino si la voz es neutra)
     if (voice) u.voice = voice;
     window.speechSynthesis.speak(u);
   }
+
   return {
     say(text) {
       if (!text) return;
@@ -1113,7 +1270,11 @@ const Speech = (() => {
         parts.forEach((p,i)=> setTimeout(()=>sayWord(p), i*1400));
       } else sayWord(text);
     },
-    stop() { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }
+    stop() { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); },
+    // Utilidad para ver las voces desde la consola del navegador
+    listVoices() { return window.speechSynthesis.getVoices(); },
+    // Recargar la voz (cuando el padre cambia la preferida)
+    reload() { pickVoice(); }
   };
 })();
 
@@ -2179,6 +2340,91 @@ const Backup = (() => {
 /* ============================================================
    👨‍👩‍👧 PARENT PANEL
    ============================================================ */
+/* ============================================================
+   🎙️ VOICE MANAGER — Selector de voz persistente
+   ============================================================ */
+const VoiceManager = (() => {
+  const STORAGE_KEY = 'spellQuest_preferredVoice';
+
+  function getPreferred() {
+    return localStorage.getItem(STORAGE_KEY) || null;
+  }
+
+  function setPreferred(voiceName) {
+    if (voiceName) localStorage.setItem(STORAGE_KEY, voiceName);
+    else localStorage.removeItem(STORAGE_KEY);
+    // Avisar a Speech para que recargue
+    if (window.Speech && typeof Speech.reload === 'function') {
+      Speech.reload();
+    }
+  }
+
+  function listEnglishVoices() {
+    return window.speechSynthesis.getVoices()
+      .filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+  }
+
+  function render() {
+    const list = document.getElementById('voice-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const voices = listEnglishVoices();
+    const preferred = getPreferred();
+
+    if (voices.length === 0) {
+      list.innerHTML = `
+        <div class="voice-empty">
+          ⚠️ No hay voces en inglés disponibles en este dispositivo.<br><br>
+          Ve a <strong>Ajustes del sistema → Accesibilidad → Leer y pronunciar → Voces → Inglés</strong><br>
+          y descarga al menos una voz.
+        </div>`;
+      return;
+    }
+
+    voices.forEach(v => {
+      const isSelected = preferred ? v.name === preferred : false;
+      const div = document.createElement('div');
+      div.className = 'voice-item' + (isSelected ? ' selected' : '');
+      div.innerHTML = `
+        <span class="voice-radio">${isSelected ? '✅' : '⚪'}</span>
+        <div class="voice-info">
+          <div class="voice-name">${v.name}${v.default ? '<span class="voice-badge">default</span>' : ''}</div>
+          <div class="voice-lang">${v.lang}${v.localService ? ' · local' : ''}</div>
+        </div>
+        <button class="voice-play" data-play="${v.name}">🔊</button>
+      `;
+      // Seleccionar al pulsar la tarjeta
+      div.addEventListener('click', (e) => {
+        if (e.target.classList.contains('voice-play')) return;
+        setPreferred(v.name);
+        render();
+        UI.toast('✅ Voz seleccionada: ' + v.name, 'success');
+      });
+      // Botón de escuchar muestra
+      div.querySelector('.voice-play').addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSample(v.name);
+      });
+      list.appendChild(div);
+    });
+  }
+
+  function playSample(voiceName) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(x => x.name === voiceName);
+    const u = new SpeechSynthesisUtterance('Hello, this is apple. Can you spell it?');
+    u.lang = v?.lang || 'en-GB';
+    u.rate = 0.85;
+    u.pitch = 1.1;
+    if (v) u.voice = v;
+    window.speechSynthesis.speak(u);
+  }
+
+  return { getPreferred, setPreferred, listEnglishVoices, render, playSample };
+})();
+
 const ParentPanel = (() => {
   let selectedAvatar = null;
 
@@ -2334,6 +2580,9 @@ const ParentPanel = (() => {
     });
 
     document.getElementById('new-pin-input').value = state.settings.parentPIN || '1234';
+    
+    // Renderizar el selector de voces (por si hay voces nuevas cargadas)
+    if (typeof VoiceManager !== 'undefined') VoiceManager.render();
   }
 
   function openResetModal(childId) {
@@ -2648,6 +2897,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-pin').addEventListener('click', () => ParentPanel.savePin());
   document.getElementById('btn-reset-progress-all').addEventListener('click', () => ParentPanel.resetProgressAll());
   document.getElementById('btn-reset-all').addEventListener('click', () => ParentPanel.resetAll());
+
+  // Voice Manager
+  document.getElementById('btn-reset-voice').addEventListener('click', () => {
+    VoiceManager.setPreferred(null);
+    VoiceManager.render();
+    UI.toast('🔄 Voz por defecto restaurada', 'success');
+  });
 
   // Backup
   document.getElementById('btn-export-file').addEventListener('click', () => Backup.downloadFile());
