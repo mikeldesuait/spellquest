@@ -1,0 +1,2668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpellQuest — A spelling adventure for kids</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg1: #a78bfa; --bg2: #60a5fa; --bg3: #f472b6;
+  --card: #ffffff; --text: #312e81; --text-soft: #6b7280;
+  --primary: #7c3aed; --primary-dark: #5b21b6;
+  --success: #34d399; --success-dark: #10b981;
+  --warning: #fbbf24; --warning-dark: #d97706;
+  --danger: #f472b6; --danger-dark: #ec4899;
+  --shadow: 0 8px 24px rgba(124,58,237,0.15);
+  --radius: 24px; --radius-sm: 16px;
+}
+body { font-family: 'Fredoka', 'Comic Sans MS', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--bg3) 100%); background-attachment: fixed; color: var(--text); min-height: 100vh; padding: 16px; display: flex; justify-content: center; align-items: flex-start; font-weight: 500; }
+.screen { display: none; width: 100%; max-width: 900px; margin: 0 auto; background: var(--card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.screen.active { display: block; }
+@keyframes popIn { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes wiggle { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.top-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.top-bar h1, .top-bar h2 { font-size: 1.6rem; color: var(--primary); font-weight: 700; }
+.title-block h1 { display: flex; align-items: center; gap: 8px; }
+.subtitle-tag { font-size: 0.85rem; color: var(--text-soft); font-weight: 500; margin-top: 2px; }
+.subtitle { text-align: center; color: var(--text-soft); margin-bottom: 24px; font-size: 1.15rem; }
+button { font-family: inherit; cursor: pointer; border: none; border-radius: var(--radius-sm); padding: 14px 22px; font-size: 1.05rem; font-weight: 600; transition: all 0.1s; }
+button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
+.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 6px 0 var(--primary-dark); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { background: #f3f4f6; color: var(--text); box-shadow: 0 4px 0 #d1d5db; }
+.btn-success { background: var(--success); color: #fff; box-shadow: 0 6px 0 var(--success-dark); }
+.btn-icon { background: transparent; font-size: 1.8rem; padding: 6px 12px; box-shadow: none; }
+.btn-back { background: #f3f4f6; color: var(--primary); padding: 10px 18px; font-size: 1rem; box-shadow: 0 4px 0 #d1d5db; }
+.btn-danger { background: var(--danger); color: #fff; box-shadow: 0 6px 0 var(--danger-dark); }
+.btn-warning { background: var(--warning); color: #fff; box-shadow: 0 6px 0 var(--warning-dark); }
+.btn-primary.big, .btn-success.big { padding: 18px 36px; font-size: 1.25rem; width: 100%; max-width: 400px; margin: 8px auto; display: block; }
+.hidden { display: none !important; }
+.children-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.child-card { background: linear-gradient(160deg, #ffffff, #f5f3ff); border: 4px solid transparent; border-radius: var(--radius); padding: 20px 12px; text-align: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 6px 0 #ddd6fe; }
+.child-card:hover { transform: translateY(-4px); border-color: var(--primary); }
+.child-card.selected { border-color: var(--primary); background: linear-gradient(160deg, #ede9fe, #ddd6fe); box-shadow: 0 6px 0 var(--primary-dark); }
+.child-avatar { font-size: 3.5rem; display: block; margin-bottom: 8px; animation: bounce 2.5s ease-in-out infinite; }
+.child-name { font-weight: 700; font-size: 1.15rem; color: var(--primary); }
+.child-points { color: var(--text-soft); font-size: 0.9rem; font-weight: 600; margin-top: 4px; }
+.child-badges { font-size: 1.2rem; margin-top: 6px; min-height: 1.4em; letter-spacing: -3px; }
+.mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+.mode-tile { background: linear-gradient(160deg, #f5f3ff, #ffffff); border: 3px solid transparent; border-radius: 20px; padding: 20px 10px; text-align: center; box-shadow: 0 5px 0 #ddd6fe; cursor: pointer; transition: all 0.15s; }
+.mode-tile:hover { border-color: var(--primary); transform: translateY(-3px); }
+.mode-tile:active { transform: translateY(2px); box-shadow: 0 2px 0 #ddd6fe; }
+.mode-tile.locked { opacity: 0.45; cursor: not-allowed; }
+.mode-tile.locked:hover { transform: none; border-color: transparent; }
+.mode-tile .mode-emoji { font-size: 2.6rem; display: block; margin-bottom: 6px; }
+.mode-tile .mode-label { font-weight: 700; font-size: 0.95rem; color: var(--primary); line-height: 1.2; }
+.mode-tile .mode-count { font-size: 0.8rem; color: var(--text-soft); margin-top: 2px; }
+.stars-btn { position: fixed; top: 20px; right: 80px; z-index: 100; background: var(--warning); color: #fff; box-shadow: 0 4px 0 var(--warning-dark); padding: 10px 16px; font-size: 1rem; border-radius: var(--radius-sm); }
+.words-read-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.word-read-item { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: var(--radius-sm); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 1.15rem; font-weight: 600; box-shadow: 0 4px 0 #fbbf24; }
+.word-read-item button { background: #fff; padding: 6px 12px; font-size: 1.3rem; border-radius: 12px; box-shadow: 0 3px 0 #d1d5db; }
+.progress-bar { height: 16px; background: #ede9fe; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--success), #6ee7b7); width: 0%; transition: width 0.4s; border-radius: 12px; }
+.game-body { text-align: center; }
+.word-display { background: linear-gradient(135deg, #ede9fe, #ddd6fe); border-radius: var(--radius); padding: 36px 24px; margin: 20px 0; font-size: 2.4rem; font-weight: 700; color: var(--primary); display: flex; justify-content: center; align-items: center; gap: 16px; min-height: 130px; position: relative; }
+.word-display.audio-mode { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; letter-spacing: 8px; }
+.word-display .timer { position: absolute; top: 10px; right: 16px; background: var(--warning); color: #fff; padding: 4px 14px; border-radius: 20px; font-size: 1.1rem; font-weight: 700; }
+.answer-input { width: 100%; max-width: 500px; padding: 18px 22px; font-size: 1.5rem; border: 4px solid #ddd6fe; border-radius: var(--radius-sm); text-align: center; font-family: inherit; font-weight: 600; margin: 12px auto 20px; display: block; color: var(--primary); }
+.answer-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(124,58,237,0.15); }
+.answer-input:disabled { opacity: 0.5; }
+.feedback-box, .summary-box, .celebrate-box, .pin-box { text-align: center; padding: 20px; }
+.feedback-icon { font-size: 6rem; margin-bottom: 12px; animation: bounce 0.6s ease-in-out; }
+.feedback-box h2 { font-size: 2.6rem; margin-bottom: 12px; color: var(--success); font-weight: 700; }
+.feedback-points { font-size: 2.4rem; color: var(--success); font-weight: 700; }
+.feedback-streak { color: var(--warning); font-weight: 700; margin: 12px 0; font-size: 1.3rem; }
+.feedback-correction { background: #fef3c7; border-left: 6px solid var(--warning); border-radius: var(--radius-sm); padding: 20px; margin: 20px 0; text-align: left; font-size: 1.15rem; }
+.feedback-correction p { margin: 8px 0; }
+.feedback-correction strong { color: var(--danger-dark); font-size: 1.3rem; }
+.summary-stats { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: var(--radius); padding: 24px; margin: 20px 0; font-size: 1.25rem; font-weight: 600; }
+.summary-stats p { margin: 10px 0; }
+.summary-stats strong { color: var(--success-dark); font-size: 1.4rem; }
+.summary-status { font-size: 2rem; font-weight: 700; margin: 20px 0; padding: 12px; border-radius: var(--radius-sm); }
+.summary-status.passed { color: var(--success-dark); background: #d1fae5; }
+.summary-status.failed { color: var(--danger-dark); background: #fce7f3; }
+.summary-review { background: #fef3c7; border-radius: var(--radius-sm); padding: 20px; margin: 16px 0; text-align: left; font-size: 1.1rem; }
+.summary-review h3 { color: #92400e; margin-bottom: 10px; }
+.summary-review ul { margin-left: 24px; }
+.summary-review li { margin: 8px 0; }
+.summary-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+.celebrate-icon { font-size: 7rem; animation: wiggle 0.8s ease-in-out infinite; }
+.big-points { font-size: 2.8rem; color: var(--success); font-weight: 700; margin: 20px 0; }
+.badges-row { font-size: 3.5rem; margin: 20px 0; min-height: 4.5rem; letter-spacing: 8px; animation: pulse 1.5s ease-in-out infinite; }
+.pin-input { font-size: 2.4rem; text-align: center; letter-spacing: 16px; width: 220px; padding: 16px; border: 4px solid #ddd6fe; border-radius: var(--radius-sm); margin: 12px auto 20px; display: block; font-family: inherit; color: var(--primary); font-weight: 700; }
+.pin-input:focus { outline: none; border-color: var(--primary); }
+.error-text { color: var(--danger-dark); font-weight: 700; margin-bottom: 12px; font-size: 1.1rem; }
+.parent-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 3px solid #f3f4f6; }
+.tab { background: transparent; color: var(--text-soft); padding: 10px 16px; border-radius: 12px; font-size: 0.95rem; box-shadow: none; font-weight: 600; }
+.tab:hover { background: #f3f4f6; }
+.tab.active { background: var(--primary); color: #fff; box-shadow: 0 4px 0 var(--primary-dark); }
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: popIn 0.3s; }
+.tab-content input, .tab-content textarea { width: 100%; padding: 14px; border: 3px solid #e5e7eb; border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem; margin-bottom: 12px; font-weight: 500; color: var(--text); }
+.tab-content input:focus, .tab-content textarea:focus { outline: none; border-color: var(--primary); }
+.tab-content textarea { min-height: 200px; resize: vertical; font-size: 1.05rem; line-height: 1.6; }
+.tab-content h3 { margin: 20px 0 12px; color: var(--primary); font-weight: 700; font-size: 1.15rem; }
+.tab-content h4 { margin: 16px 0 8px; color: var(--primary); font-weight: 700; font-size: 1rem; }
+.tab-content label { display: block; margin: 14px 0 6px; font-weight: 600; font-size: 1rem; }
+.tab-content hr { border: none; border-top: 2px dashed #e5e7eb; margin: 24px 0; }
+.info-text { color: var(--success-dark); font-weight: 700; margin-bottom: 12px; font-size: 1.05rem; }
+.parent-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #f9fafb; border-radius: var(--radius-sm); margin-bottom: 8px; font-weight: 500; flex-wrap: wrap; gap: 8px; }
+.parent-item .item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.parent-item button { padding: 8px 14px; font-size: 0.9rem; border-radius: 12px; }
+.parent-item button.del-btn { background: var(--danger); color: #fff; box-shadow: 0 3px 0 var(--danger-dark); }
+.parent-item button.reset-btn { background: var(--warning); color: #fff; box-shadow: 0 3px 0 var(--warning-dark); }
+.parent-item button.deliver-btn { background: var(--success); color: #fff; box-shadow: 0 3px 0 var(--success-dark); }
+.parent-item button.reject-btn { background: #6b7280; color: #fff; box-shadow: 0 3px 0 #374151; }
+.parent-item button.edit-btn { background: var(--primary); color: #fff; box-shadow: 0 3px 0 var(--primary-dark); }
+.parent-item button.activate-btn { background: #10b981; color: #fff; box-shadow: 0 3px 0 #047857; }
+.parent-item.active-week { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-left: 5px solid var(--success-dark); }
+.points-grid { display: grid; grid-template-columns: 1fr 100px; gap: 10px 12px; align-items: center; margin-bottom: 16px; }
+.points-grid label { margin: 0; font-size: 0.95rem; }
+.points-grid input[type="number"] { margin: 0; padding: 8px 12px; font-size: 1rem; }
+.points-grid input[type="checkbox"] { width: 28px; height: 28px; margin: 0; cursor: pointer; }
+.avatar-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 12px 0 20px; max-width: 500px; }
+.avatar-option { background: #f9fafb; border: 3px solid transparent; border-radius: var(--radius-sm); padding: 12px; font-size: 2rem; text-align: center; cursor: pointer; transition: all 0.15s; }
+.avatar-option:hover { background: #ede9fe; transform: scale(1.05); }
+.avatar-option.selected { background: #ede9fe; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(124,58,237,0.2); transform: scale(1.1); }
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-120px); background: var(--text); color: #fff; padding: 16px 28px; border-radius: var(--radius-sm); font-weight: 700; box-shadow: var(--shadow); z-index: 9999; transition: transform 0.4s; font-size: 1.05rem; max-width: 90vw; text-align: center; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.confetti { position: fixed; font-size: 2rem; pointer-events: none; z-index: 9998; animation: fall 3s linear forwards; }
+@keyframes fall { 0% { top: -60px; opacity: 1; transform: rotate(0deg) scale(1); } 100% { top: 100vh; opacity: 0; transform: rotate(720deg) scale(0.6); } }
+.reward-card { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: var(--radius-sm); margin-bottom: 12px; box-shadow: 0 4px 0 #fbbf24; }
+.reward-card.affordable { background: linear-gradient(135deg, #d1fae5, #a7f3d0); box-shadow: 0 4px 0 #34d399; }
+.reward-name { font-weight: 700; font-size: 1.15rem; }
+.reward-cost { color: var(--text-soft); font-size: 0.95rem; }
+.reward-card button { padding: 10px 18px; font-size: 1rem; }
+.reward-card button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ranking-row { display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: #f9fafb; border-radius: var(--radius-sm); margin-bottom: 10px; font-size: 1.15rem; font-weight: 600; }
+.ranking-row.first { background: linear-gradient(135deg, #fef3c7, #fde68a); box-shadow: 0 4px 0 #fbbf24; }
+.ranking-row.second { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); box-shadow: 0 4px 0 #9ca3af; }
+.ranking-row.third { background: linear-gradient(135deg, #fed7aa, #fdba74); box-shadow: 0 4px 0 #ea580c; }
+.ranking-pos { font-size: 1.6rem; min-width: 40px; }
+.ranking-avatar { font-size: 2.2rem; }
+.ranking-name { flex: 1; }
+.ranking-points { color: var(--success-dark); font-weight: 700; }
+.guide-section { text-align: left; line-height: 1.7; }
+.guide-section h3 { color: var(--primary); margin-top: 24px; margin-bottom: 8px; font-size: 1.2rem; }
+.guide-section h3:first-child { margin-top: 0; }
+.guide-section p { margin-bottom: 12px; color: var(--text); }
+.guide-section ul { margin-left: 24px; margin-bottom: 12px; }
+.guide-section li { margin-bottom: 6px; }
+.guide-section code { background: #ede9fe; padding: 2px 8px; border-radius: 6px; font-family: monospace; color: var(--primary-dark); font-size: 0.95em; }
+.guide-section .highlight { background: #fef3c7; padding: 14px 18px; border-radius: var(--radius-sm); border-left: 5px solid var(--warning); margin: 16px 0; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9997; display: flex; justify-content: center; align-items: center; padding: 20px; animation: fadeIn 0.2s; }
+.modal-box { background: #fff; border-radius: var(--radius); padding: 28px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
+.modal-box h2 { color: var(--primary); margin-bottom: 16px; font-size: 1.5rem; }
+.modal-box .checkbox-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 1.05rem; font-weight: 500; }
+.modal-box .checkbox-row input { width: 24px; height: 24px; cursor: pointer; }
+.modal-box .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+.wallet-header { text-align: center; padding: 20px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: var(--radius); margin-bottom: 20px; box-shadow: 0 4px 0 #fbbf24; }
+.wallet-header h2 { color: var(--warning-dark); font-size: 1.3rem; margin-bottom: 8px; }
+.wallet-points { font-size: 2.4rem; font-weight: 700; color: var(--warning-dark); }
+.history-list { margin-top: 24px; text-align: left; }
+.history-list h3 { color: var(--primary); margin-bottom: 12px; }
+.history-item { background: #f9fafb; padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 1rem; display: flex; justify-content: space-between; }
+.history-item.delivered { color: var(--success-dark); }
+.history-item.pending { color: var(--warning-dark); }
+.week-card { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #f9fafb; border-radius: var(--radius-sm); margin-bottom: 10px; font-weight: 500; flex-wrap: wrap; gap: 10px; }
+.week-card.active { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-left: 6px solid var(--success-dark); }
+.week-card .week-info { flex: 1; min-width: 200px; }
+.week-card .week-label { font-weight: 700; font-size: 1.15rem; color: var(--primary); }
+.week-card .week-meta { color: var(--text-soft); font-size: 0.9rem; margin-top: 4px; }
+.week-card .week-badge { display: inline-block; background: var(--success); color: #fff; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; margin-left: 8px; }
+.week-card .week-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.week-card button { padding: 8px 14px; font-size: 0.9rem; border-radius: 12px; }
+.week-card button.activate-btn { background: var(--success); color: #fff; box-shadow: 0 3px 0 var(--success-dark); }
+.week-card button.edit-btn { background: var(--primary); color: #fff; box-shadow: 0 3px 0 var(--primary-dark); }
+.week-card button.del-btn { background: var(--danger); color: #fff; box-shadow: 0 3px 0 var(--danger-dark); }
+.duel-header { display: flex; justify-content: space-around; align-items: center; padding: 16px; background: linear-gradient(135deg, #ede9fe, #ddd6fe); border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 1.2rem; font-weight: 700; }
+.duel-player { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.duel-player .avatar { font-size: 2.5rem; }
+.duel-score { font-size: 1.8rem; color: var(--success-dark); }
+.duel-vs { font-size: 1.5rem; color: var(--text-soft); }
+.timer-big { text-align: center; font-size: 3rem; font-weight: 700; color: var(--primary); margin: 10px 0 20px; }
+.score-big { text-align: center; font-size: 1.8rem; font-weight: 700; color: var(--success-dark); margin-bottom: 20px; }
+@media (max-width: 700px) {
+  .mode-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  body { padding: 8px; }
+  .screen { padding: 16px; border-radius: 20px; }
+  .top-bar h1, .top-bar h2 { font-size: 1.25rem; }
+  .word-display { font-size: 1.8rem; padding: 24px 16px; min-height: 100px; }
+  .answer-input { font-size: 1.3rem; padding: 14px; }
+  .children-grid { grid-template-columns: repeat(2, 1fr); }
+  .child-avatar { font-size: 2.8rem; }
+  .avatar-picker { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .avatar-option { padding: 8px; font-size: 1.6rem; }
+  .summary-actions button { width: 100%; }
+  .stars-btn { top: auto; bottom: 16px; right: 16px; }
+  .parent-item { flex-direction: column; align-items: flex-start; }
+  .week-card { flex-direction: column; align-items: flex-start; }
+}
+
+/* ============================================================
+   🎨 MODAL - Estilo bonito (Fredoka + colores app)
+   ============================================================ */
+.modal-box {
+  font-family: 'Fredoka', 'Comic Sans MS', system-ui, sans-serif;
+  color: var(--text);
+}
+.modal-box h2 {
+  color: var(--primary);
+  margin-bottom: 20px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-box label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  margin-top: 16px;
+  font-size: 1.05rem;
+}
+.modal-box label:first-of-type { margin-top: 0; }
+.modal-box input[type="text"],
+.modal-box input[type="number"],
+.modal-box input[type="password"],
+.modal-box textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 3px solid #ddd6fe;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--text);
+  background: #fafaff;
+  transition: all 0.15s;
+  margin-bottom: 4px;
+}
+.modal-box input:focus,
+.modal-box textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(124,58,237,0.15);
+}
+.modal-box textarea {
+  min-height: 220px;
+  resize: vertical;
+  line-height: 1.6;
+  font-family: inherit;
+}
+.modal-box .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.modal-box .checkbox-row input[type="checkbox"] {
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+  margin: 0;
+}
+.modal-box .checkbox-row label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+.modal-box .modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.modal-box .modal-actions button {
+  padding: 14px 24px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  min-width: 120px;
+}
+@media (max-width: 500px) {
+  .modal-box { padding: 20px; }
+  .modal-box h2 { font-size: 1.3rem; }
+  .modal-box .modal-actions { flex-direction: column-reverse; }
+  .modal-box .modal-actions button { width: 100%; min-width: 0; }
+}
+
+
+.modal-box .help-note {
+  background: #fef3c7;
+  border-left: 4px solid var(--warning);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+  color: #92400e;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.modal-box .help-note code {
+  background: rgba(255,255,255,0.7);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+
+/* ============================================================
+   ⚔️ DUEL SETUP - Estilo bonito
+   ============================================================ */
+.duel-players {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.duel-player-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(160deg, #ffffff, #f5f3ff);
+  border: 3px solid #ddd6fe;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 4px 0 #ddd6fe;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+.duel-player-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+}
+.duel-player-card:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #ddd6fe;
+}
+.duel-player-card.selected {
+  background: linear-gradient(160deg, #d1fae5, #a7f3d0);
+  border-color: var(--success-dark);
+  box-shadow: 0 4px 0 var(--success-dark);
+}
+.duel-player-card .player-avatar {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+.duel-player-card .player-name {
+  flex: 1;
+  color: var(--primary);
+}
+.duel-player-card.selected .player-name {
+  color: var(--success-dark);
+}
+.duel-player-card .player-check {
+  font-size: 1.6rem;
+  color: var(--success-dark);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.duel-player-card.selected .player-check {
+  opacity: 1;
+}
+.duel-rounds-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-radius: var(--radius-sm);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.duel-rounds-row input {
+  width: 100px !important;
+  padding: 10px 16px !important;
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  text-align: center;
+  color: var(--primary) !important;
+  border: 3px solid #ddd6fe !important;
+  border-radius: var(--radius-sm) !important;
+  background: #ffffff !important;
+  margin: 0 !important;
+}
+.duel-rounds-row input:focus {
+  outline: none;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 4px rgba(124,58,237,0.15);
+}
+
+</style>
+</head>
+<body>
+
+<!-- 🏠 HOME -->
+<section id="screen-home" class="screen active">
+  <header class="top-bar">
+    <div class="title-block">
+      <h1>🗺️ SpellQuest</h1>
+      <div class="subtitle-tag">A spelling adventure for kids</div>
+    </div>
+    <button id="btn-open-parent" class="btn-icon" title="Parent Panel">👨‍👩‍👧</button>
+  </header>
+  <p class="subtitle">Who is playing today?</p>
+  <div id="children-list" class="children-grid"></div>
+  <div id="mode-grid" class="mode-grid hidden">
+    <button class="mode-tile" id="tile-week">
+      <span class="mode-emoji">📅</span>
+      <div class="mode-label">This Week</div>
+    </button>
+    <button class="mode-tile" id="tile-choose">
+      <span class="mode-emoji">📚</span>
+      <div class="mode-label">Choose Week</div>
+    </button>
+    <button class="mode-tile" id="tile-master">
+      <span class="mode-emoji">🏆</span>
+      <div class="mode-label">Master Mode</div>
+      <div class="mode-count" id="master-progress-count">0/2</div>
+    </button>
+    <button class="mode-tile" id="tile-rewards">
+      <span class="mode-emoji">🎁</span>
+      <div class="mode-label">Rewards</div>
+    </button>
+  </div>
+</section>
+
+<!-- 📚 CHOOSE WEEK -->
+<section id="screen-choose-week" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2>📚 Choose a Week</h2>
+  </header>
+  <p class="subtitle">Pick any week to practice</p>
+  <div id="choose-week-list"></div>
+</section>
+
+<!-- ⭐ STARS -->
+<section id="screen-stars" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2>⭐ My Stars</h2>
+  </header>
+  <p class="subtitle">Who is winning in this house?</p>
+  <div id="stars-ranking"></div>
+</section>
+
+<!-- 🎁 WALLET -->
+<section id="screen-wallet" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2>🎁 Rewards</h2>
+  </header>
+  <div class="wallet-header">
+    <h2>You have</h2>
+    <div id="wallet-points" class="wallet-points">⭐ 0</div>
+  </div>
+  <div id="wallet-rewards"></div>
+  <div id="wallet-history" class="history-list"></div>
+</section>
+
+<!-- 🏆 MASTER MODE MENU -->
+<section id="screen-master" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2>🏆 MASTER MODE</h2>
+  </header>
+  <p id="master-pool-count" class="subtitle">Words in your collection: 0</p>
+  <div class="mode-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <button class="mode-tile" data-master="random">
+      <span class="mode-emoji">🎲</span>
+      <div class="mode-label">Random Review</div>
+    </button>
+    <button class="mode-tile" data-master="time">
+      <span class="mode-emoji">⏱️</span>
+      <div class="mode-label">Time Attack</div>
+    </button>
+    <button class="mode-tile" data-master="duel">
+      <span class="mode-emoji">⚔️</span>
+      <div class="mode-label">Duel</div>
+    </button>
+  </div>
+</section>
+
+<!-- ⏱️ TIME ATTACK SETUP -->
+<section id="screen-time-setup" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2>⏱️ Time Attack</h2>
+  </header>
+  <p class="subtitle">60 seconds. How many words can you spell?</p>
+  <h3 style="color:var(--primary); margin-bottom:12px;">Choose mode:</h3>
+  <div class="mode-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <button class="mode-tile" data-time-mode="copy">
+      <span class="mode-emoji">📝</span>
+      <div class="mode-label">Copy</div>
+    </button>
+    <button class="mode-tile" data-time-mode="listen-write">
+      <span class="mode-emoji">🎧</span>
+      <div class="mode-label">Listen & Write</div>
+    </button>
+    <button class="mode-tile" data-time-mode="listen-only">
+      <span class="mode-emoji">🔊</span>
+      <div class="mode-label">Listen Only</div>
+    </button>
+  </div>
+</section>
+
+<!-- ⏱️ TIME ATTACK GAME -->
+<section id="screen-time-game" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" id="btn-time-back">← Back</button>
+    <h2>⏱️ Time Attack</h2>
+    <span id="time-score-display">Score: 0</span>
+  </header>
+  <div class="timer-big" id="time-counter">60</div>
+  <div class="game-body">
+    <p id="time-instruction" class="subtitle">📝 Copy this word:</p>
+    <div id="time-word-display" class="word-display">
+      <span id="time-word-text">apple</span>
+      <button id="btn-time-audio" class="btn-icon hidden">🔊</button>
+    </div>
+    <input type="text" id="time-answer-input" class="answer-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button id="btn-time-check" class="btn-success big">✅ CHECK</button>
+  </div>
+</section>
+
+<!-- ⏱️ TIME ATTACK RESULT -->
+<section id="screen-time-result" class="screen">
+  <div class="celebrate-box">
+    <div class="celebrate-icon">⏱️</div>
+    <h2 style="color:var(--success); font-size:2rem;">TIME'S UP!</h2>
+    <p id="time-result-score" class="big-points">0 words</p>
+    <p id="time-result-points" style="color:var(--success-dark); font-size:1.4rem; font-weight:700;">+0 points</p>
+    <p id="time-result-best" style="color:var(--warning-dark); font-size:1.1rem; margin-top:12px;"></p>
+    <div class="summary-actions" style="margin-top:24px;">
+      <button id="btn-time-again" class="btn-secondary">🔁 Again</button>
+      <button id="btn-time-home" class="btn-success big">🏠 Home</button>
+    </div>
+  </div>
+</section>
+
+<!-- ⚔️ DUEL SETUP -->
+<section id="screen-duel-setup" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2>⚔️ Duel</h2>
+  </header>
+  <p class="subtitle">Choose players (2 or more)</p>
+  <div id="duel-players-list" class="duel-players"></div>
+  <div class="duel-rounds-row">
+    <label style="margin:0;">Rounds:</label>
+    <input type="number" id="duel-rounds" value="12" min="4" max="30">
+  </div>
+  <button id="btn-duel-start" class="btn-success big">⚔️ START DUEL</button>
+</section>
+
+<!-- ⚔️ DUEL GAME -->
+<section id="screen-duel-game" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" id="btn-duel-back">← Back</button>
+    <h2>⚔️ Duel</h2>
+    <span id="duel-round-text">1 / 12</span>
+  </header>
+  <div class="duel-header">
+    <div class="duel-player">
+      <span class="avatar" id="duel-p1-avatar">🦊</span>
+      <span id="duel-p1-name">Player 1</span>
+      <span class="duel-score" id="duel-p1-score">0</span>
+    </div>
+    <span class="duel-vs">vs</span>
+    <div class="duel-player">
+      <span class="avatar" id="duel-p2-avatar">🐼</span>
+      <span id="duel-p2-name">Player 2</span>
+      <span class="duel-score" id="duel-p2-score">0</span>
+    </div>
+  </div>
+  <div class="game-body">
+    <p id="duel-turn" class="subtitle" style="font-weight:700; font-size:1.3rem; color:var(--primary);">Turn: Player 1</p>
+    <p id="duel-instruction" class="subtitle">📝 Copy this word:</p>
+    <div id="duel-word-display" class="word-display">
+      <span id="duel-word-text">apple</span>
+      <button id="btn-duel-audio" class="btn-icon hidden">🔊</button>
+    </div>
+    <input type="text" id="duel-answer-input" class="answer-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button id="btn-duel-check" class="btn-success big">✅ CHECK</button>
+  </div>
+</section>
+
+<!-- ⚔️ DUEL RESULT -->
+<section id="screen-duel-result" class="screen">
+  <div class="celebrate-box">
+    <div class="celebrate-icon" id="duel-result-icon">🏆</div>
+    <h2 id="duel-result-title" style="color:var(--success); font-size:2rem;">WINNER!</h2>
+    <p id="duel-result-score" class="big-points">0 - 0</p>
+    <div id="duel-result-points" style="margin-top:20px;"></div>
+    <div class="summary-actions" style="margin-top:24px;">
+      <button id="btn-duel-home" class="btn-success big">🏠 Home</button>
+    </div>
+  </div>
+</section>
+
+<!-- 📖 READ & LISTEN -->
+<section id="screen-read-words" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" data-back>← Back</button>
+    <h2 id="read-week-title">📖 Read & Listen</h2>
+  </header>
+  <p class="subtitle" id="read-week-label">Read and listen to all the words first</p>
+  <div id="words-read-list" class="words-read-grid"></div>
+  <button id="btn-start-game" class="btn-success big">🎮 I'm ready! START</button>
+</section>
+
+<!-- 🎮 GAME -->
+<section id="screen-game" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" id="btn-game-back">← Back</button>
+    <h2 id="game-phase-title">Phase 2: Copy</h2>
+    <span id="game-progress-text">1 / 12</span>
+  </header>
+  <div class="progress-bar"><div id="game-progress-fill" class="progress-fill"></div></div>
+  <div class="game-body">
+    <p id="game-instruction" class="subtitle">📝 Copy this word:</p>
+    <div id="word-display" class="word-display">
+      <span id="word-text">apple</span>
+      <button id="btn-play-audio" class="btn-icon">🔊</button>
+    </div>
+    <input type="text" id="answer-input" class="answer-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button id="btn-check" class="btn-success big">✅ CHECK</button>
+  </div>
+</section>
+
+<!-- 🎉 FEEDBACK -->
+<section id="screen-feedback" class="screen">
+  <div class="feedback-box">
+    <div id="feedback-icon" class="feedback-icon">🎉</div>
+    <h2 id="feedback-title">GREAT JOB!</h2>
+    <p id="feedback-points" class="feedback-points">+1 point</p>
+    <p id="feedback-streak" class="feedback-streak"></p>
+    <div id="feedback-correction" class="feedback-correction hidden">
+      <p>You wrote: <strong id="feedback-yours">—</strong></p>
+      <p>Correct is: <strong id="feedback-correct">—</strong></p>
+      <button id="btn-hear-again" class="btn-secondary">🔊 Listen again</button>
+    </div>
+    <button id="btn-next-word" class="btn-success big">➡ NEXT</button>
+  </div>
+</section>
+
+<!-- 📊 PHASE SUMMARY -->
+<section id="screen-phase-summary" class="screen">
+  <div class="summary-box">
+    <h2 id="summary-title">Phase Complete! 🏁</h2>
+    <div class="summary-stats">
+      <p>Correct: <strong id="summary-correct">0 / 12</strong></p>
+      <p>Accuracy: <strong id="summary-accuracy">0%</strong></p>
+      <p>Points this phase: <strong id="summary-points">+0</strong></p>
+      <p>Time: <strong id="summary-time">0m 0s</strong></p>
+    </div>
+    <p id="summary-status" class="summary-status">✅ GREAT!</p>
+    <div id="summary-review" class="summary-review hidden">
+      <h3>Words to review:</h3>
+      <ul id="summary-review-list"></ul>
+    </div>
+    <div class="summary-actions">
+      <button id="btn-retry-phase" class="btn-secondary">🔁 RETRY</button>
+      <button id="btn-next-phase" class="btn-success big">➡ NEXT PHASE</button>
+    </div>
+  </div>
+</section>
+
+<!-- 🎊 WEEK COMPLETE -->
+<section id="screen-week-complete" class="screen">
+  <div class="celebrate-box">
+    <div class="celebrate-icon">🏆</div>
+    <h2 style="color:var(--success); font-size:2rem;">WEEK COMPLETE!</h2>
+    <p id="week-complete-points" class="big-points">+0 pts</p>
+    <div id="week-complete-badges" class="badges-row"></div>
+    <h3 style="color:var(--primary); margin-top:20px;">🎁 Rewards</h3>
+    <p style="color:var(--text-soft); margin-bottom:16px;">Tap to redeem with your points</p>
+    <div id="week-rewards-list"></div>
+    <button id="btn-back-home" class="btn-success big" style="margin-top:20px;">🏠 HOME</button>
+  </div>
+</section>
+
+<!-- 🔒 PIN -->
+<section id="screen-pin" class="screen">
+  <div class="pin-box">
+    <h2>🔒 Parent Panel</h2>
+    <p class="subtitle">Enter PIN:</p>
+    <input type="password" id="pin-input" class="pin-input" maxlength="4" inputmode="numeric">
+    <p id="pin-error" class="error-text hidden">❌ Wrong PIN</p>
+    <button id="btn-pin-submit" class="btn-primary">Enter</button>
+    <br><br>
+    <button class="btn-back" data-back>← Back</button>
+  </div>
+</section>
+
+<!-- 👨‍👩‍👧 PARENT PANEL -->
+<section id="screen-parent" class="screen">
+  <header class="top-bar">
+    <button class="btn-back" id="btn-exit-parent">← Salir</button>
+    <h2>Panel de Padres</h2>
+  </header>
+  <nav class="parent-tabs">
+    <button class="tab active" data-tab="children">👶 Niños</button>
+    <button class="tab" data-tab="weeks">📅 Semanas</button>
+    <button class="tab" data-tab="points">⭐ Puntos</button>
+    <button class="tab" data-tab="rewards">🎁 Premios</button>
+    <button class="tab" data-tab="reports">📊 Informes</button>
+    <button class="tab" data-tab="backup">💾 Backup</button>
+    <button class="tab" data-tab="guide">❓ Ayuda</button>
+    <button class="tab" data-tab="settings">⚙️ Ajustes</button>
+  </nav>
+
+  <div class="tab-content active" data-tab-content="children">
+    <h3>Niños registrados</h3>
+    <div id="parent-children-list"></div>
+    <hr>
+    <h3>Añadir niño</h3>
+    <label>Nombre:</label>
+    <input type="text" id="new-child-name" placeholder="Nombre del niño/a">
+    <label>Elige un avatar:</label>
+    <div id="avatar-picker-new" class="avatar-picker"></div>
+    <button id="btn-add-child-parent" class="btn-primary">➕ Añadir niño</button>
+  </div>
+
+  <div class="tab-content" data-tab-content="weeks">
+    <h3>📅 Semanas de palabras</h3>
+    <p style="color:var(--text-soft); margin-bottom:16px;">La semana marcada como <strong>ACTUAL</strong> es la que se juega por defecto. Puedes guardar tantas como quieras.</p>
+    <div id="parent-weeks-list"></div>
+    <hr>
+    <button id="btn-add-week" class="btn-primary">➕ Añadir nueva semana</button>
+    <hr>
+    <h4>⚙️ Umbral para pasar de fase</h4>
+    <label>% mínimo de aciertos:</label>
+    <input type="number" id="threshold-input" min="0" max="100" value="80">
+    <button id="btn-save-threshold" class="btn-primary">💾 Guardar umbral</button>
+  </div>
+
+  <div class="tab-content" data-tab-content="points">
+    <h3>⭐ Configuración de puntos</h3>
+    <p style="color:var(--text-soft); margin-bottom:16px;">Define cuántos puntos vale cada logro:</p>
+    <div class="points-grid">
+      <label>Palabra correcta:</label>
+      <input type="number" id="pts-word" min="1" value="1">
+      <label>Bonus fase con 100%:</label>
+      <input type="number" id="pts-perfect" min="0" value="10">
+      <label>Bonus fase 70-99%:</label>
+      <input type="number" id="pts-good" min="0" value="5">
+      <label>Bonus fase &lt;70%:</label>
+      <input type="number" id="pts-low" min="0" value="0">
+      <label>Puntos dobles al escribir ambas formas:</label>
+      <input type="checkbox" id="pts-double" checked>
+    </div>
+    <button id="btn-save-points" class="btn-primary">💾 GUARDAR PUNTOS</button>
+  </div>
+
+  <div class="tab-content" data-tab-content="rewards">
+    <h3>🎁 Recompensas</h3>
+    <div id="parent-rewards-list"></div>
+    <hr>
+    <h3>Añadir premio</h3>
+    <label>Nombre:</label>
+    <input type="text" id="new-reward-name" placeholder="Ej: Helado">
+    <label>Puntos necesarios:</label>
+    <input type="number" id="new-reward-cost" placeholder="100" min="1">
+    <button id="btn-add-reward" class="btn-primary">➕ Añadir premio</button>
+    <hr>
+    <h3>Canjes pendientes</h3>
+    <div id="parent-redemptions"></div>
+  </div>
+
+  <div class="tab-content" data-tab-content="reports">
+    <h3>📊 Informes por niño</h3>
+    <div id="parent-reports"></div>
+  </div>
+
+  <div class="tab-content" data-tab-content="backup">
+    <h3>💾 Copia de seguridad</h3>
+    <p style="color:var(--text-soft); margin-bottom:20px;">Guarda o recupera los datos de la app.</p>
+    <h4>📥 Exportar</h4>
+    <button id="btn-export-file" class="btn-primary">📥 Descargar archivo JSON</button>
+    <br><br>
+    <button id="btn-export-clipboard" class="btn-secondary">📋 Copiar al portapapeles</button>
+    <hr>
+    <h4>📤 Importar</h4>
+    <label>Sube un archivo JSON:</label>
+    <input type="file" id="input-import-file" accept=".json,application/json">
+    <br><br>
+    <label>O pega el contenido aquí:</label>
+    <textarea id="textarea-import" placeholder='Pega aquí el JSON exportado...' style="min-height:120px; font-family:monospace; font-size:0.85rem;"></textarea>
+    <button id="btn-import-clipboard" class="btn-warning">📄 Importar desde texto</button>
+    <p style="color:var(--danger-dark); font-weight:600; margin-top:16px;">⚠️ Importar REEMPLAZA todos los datos actuales.</p>
+  </div>
+
+  <div class="tab-content" data-tab-content="guide">
+    <div class="guide-section">
+      <h3>🎯 ¿Qué es SpellQuest? (v1.0)</h3>
+      <p>Aplicación de práctica de <strong>spelling en inglés</strong> para niños de 6 a 12 años. Cada semana el niño aprende <strong>12 palabras nuevas</strong> a través de 4 fases progresivas, gana puntos y puede canjearlos por recompensas que tú defines.</p>
+      <p>Funciona <strong>offline</strong>, sin registro, y guarda todo en el navegador del dispositivo.</p>
+
+      <h3>📅 Cómo funciona la semana</h3>
+      <ul>
+        <li><strong>Viernes:</strong> el niño recibe 12 palabras nuevas del colegio</li>
+        <li>Tú las introduces en la pestaña <strong>📅 Semanas</strong></li>
+        <li>El niño practica durante la semana cuando quiera</li>
+        <li>Al completar las 4 fases → gana puntos y premios</li>
+        <li>Las palabras de esa semana van al <strong>Master Pool</strong> del niño</li>
+      </ul>
+
+      <h3>📅 Sistema de semanas</h3>
+      <p>Puedes guardar tantas semanas como quieras. Solo <strong>una está marcada como ACTUAL</strong> (la que se juega por defecto en "This Week").</p>
+      <ul>
+        <li><strong>➕ Añadir nueva semana:</strong> etiqueta + 12 palabras. Se marca como actual automáticamente.</li>
+        <li><strong>🔄 Activar:</strong> cambia la semana actual por esa (útil para repasar).</li>
+        <li><strong>✏️ Editar:</strong> modifica etiqueta o palabras. ⚠️ Si cambias las palabras, se resetea el progreso de esa semana.</li>
+        <li><strong>🗑️ Borrar:</strong> elimina la semana y todo su progreso.</li>
+      </ul>
+
+      <h3>🎮 Las 4 fases</h3>
+      <ul>
+        <li><strong>Fase 1 — Read & Listen:</strong> lee y escucha cada palabra (sin escribir). Sin puntos. Familiarización.</li>
+        <li><strong>Fase 2 — Copy:</strong> ve la palabra escrita y la copia.</li>
+        <li><strong>Fase 3 — Listen & Copy:</strong> ve la palabra 5 segundos (con cuenta atrás), luego desaparece y solo queda el audio 🔊 (repetible).</li>
+        <li><strong>Fase 4 — Listen Only:</strong> solo escucha la palabra (audio ilimitado). No la ve nunca.</li>
+      </ul>
+
+      <div class="highlight">
+        <strong>📌 Importante:</strong> si el niño <strong>no supera el umbral</strong> (por defecto 80%, configurable en la pestaña Semanas), debe <strong>repetir la fase desde el principio</strong>. Los puntos de esa fase se resetean.
+      </div>
+
+      <h3>⭐ Cómo se ganan los puntos</h3>
+      <p>Cada palabra correcta vale <strong>1 punto</strong> (configurable en la pestaña ⭐ Puntos). Al terminar una fase se añade un <strong>bonus</strong> según el % de aciertos:</p>
+      <ul>
+        <li><strong>100%:</strong> +10 puntos extra</li>
+        <li><strong>70-99%:</strong> +5 puntos extra</li>
+        <li><strong>&lt;70%:</strong> sin bonus</li>
+      </ul>
+      <p>Los puntos se suman al total del niño cuando completa <strong>las 4 fases</strong> de la semana.</p>
+
+      <h3>✍️ Palabras con dos formas válidas</h3>
+      <p>Si una palabra admite dos grafías (<code>yoghurt</code> y <code>yogurt</code>), sepáralas con <code>/</code> al introducirla: <code>yoghurt/yogurt</code>.</p>
+      <ul>
+        <li>Escribe una de las dos → ✅ puntos normales</li>
+        <li>Escribe las dos separadas por <code>/</code> → ✅ <strong>puntos dobles</strong> 🌟</li>
+        <li>Con o sin espacios alrededor del <code>/</code>, da igual</li>
+      </ul>
+
+      <h3>💾 Guardado automático</h3>
+      <p>El progreso se guarda <strong>palabra a palabra</strong>. Si el niño cierra el navegador o se apaga el dispositivo a mitad de una fase, al volver retoma donde lo dejó.</p>
+
+      <h3>📚 Choose Week (Elegir semana)</h3>
+      <p>El niño puede elegir cualquier semana guardada (no solo la actual) para repasar. Cada semana tiene su propio progreso independiente.</p>
+
+      <h3>🏆 Master Mode</h3>
+      <p>Se desbloquea con <strong>2 semanas completadas</strong>. El pool incluye solo las palabras de las semanas que el niño ha completado.</p>
+      <p>Tiene 3 submodos:</p>
+      <ul>
+        <li><strong>🎲 Random Review:</strong> 4 fases con todas las palabras acumuladas del niño.</li>
+        <li><strong>⏱️ Time Attack:</strong> 60 segundos. Elige modo (Copy / Listen & Write / Listen Only). Guarda tu récord personal. <em>Actualmente no otorga puntos al total.</em></li>
+        <li><strong>⚔️ Duel:</strong> varios niños compiten con las mismas palabras. Turnos alternos. <em>Actualmente no otorga puntos al total.</em></li>
+      </ul>
+
+      <h3>🏅 Insignias</h3>
+      <p>Se ganan automáticamente según los puntos totales acumulados:</p>
+      <ul>
+        <li>🥉 Bronce → 100 pts</li>
+        <li>🥈 Plata → 500 pts</li>
+        <li>🥇 Oro → 1500 pts</li>
+        <li>💎 Diamante → 3000 pts</li>
+      </ul>
+
+      <h3>⭐ My Stars (ranking)</h3>
+      <p>Botón flotante en la esquina inferior derecha. Muestra la clasificación de todos los niños de la casa, ordenada por puntos totales.</p>
+
+      <h3>🎁 Recompensas</h3>
+      <p>Configura premios en la pestaña <strong>🎁 Premios</strong> (por ejemplo "Helado por 100 puntos"). El niño puede canjearlos desde el botón <strong>🎁 Rewards</strong> de su menú o al terminar la semana.</p>
+      <p>Los canjes pendientes aparecen en la pestaña Premios del panel, donde puedes:</p>
+      <ul>
+        <li><strong>✅ Entregado:</strong> confirmar que le has dado el premio</li>
+        <li><strong>❌ Rechazar:</strong> devolver los puntos al niño</li>
+      </ul>
+
+      <h3>💾 Copia de seguridad</h3>
+      <p>Desde la pestaña <strong>💾 Backup</strong> puedes:</p>
+      <ul>
+        <li><strong>📥 Exportar:</strong> descargar un archivo JSON con TODOS los datos (niños, semanas, puntos, premios, config).</li>
+        <li><strong>📋 Copiar al portapapeles:</strong> pegar los datos en WhatsApp/Email para pasarlos a otro dispositivo.</li>
+        <li><strong>📤 Importar:</strong> subir un JSON o pegar el contenido para restaurar.</li>
+      </ul>
+      <p>⚠️ Importar REEMPLAZA todos los datos actuales. Se hace un backup automático antes por si acaso.</p>
+
+      <h3>🔄 Reset</h3>
+      <ul>
+        <li><strong>Reset individual (pestaña Niños):</strong> resetea lo que elijas de un niño concreto (puntos, progreso, insignias, historial, pool o canjes).</li>
+        <li><strong>Reset progreso de todos (Ajustes):</strong> borra puntos, insignias, progreso e historial de TODOS los niños. Las semanas y premios se mantienen.</li>
+        <li><strong>Borrar TODO (Ajustes):</strong> elimina absolutamente todo. La app vuelve al estado inicial.</li>
+      </ul>
+
+      <h3>💡 Consejos prácticos</h3>
+      <ul>
+        <li>Mejor <strong>5-10 minutos al día</strong> que 1 hora el jueves por la noche</li>
+        <li>Anima al niño a pulsar 🔊 varias veces en cada palabra</li>
+        <li>Repetir una fase no aprobada es parte del proceso, no un fracaso</li>
+        <li>Celebra las rachas 🔥 y las insignias 🥉🥈🥇💎</li>
+        <li>Configura recompensas realistas y alcanzables</li>
+        <li>Haz <strong>backup periódico</strong> (una vez al mes) por si acaso</li>
+      </ul>
+
+      <h3>❓ Preguntas frecuentes</h3>
+      <ul>
+        <li><strong>¿Funciona sin internet?</strong> Sí, una vez cargada la página por primera vez.</li>
+        <li><strong>¿Se puede usar en varios dispositivos?</strong> Cada navegador guarda sus datos por separado. Usa Backup para pasarlos.</li>
+        <li><strong>¿Dónde se guardan los datos?</strong> En el navegador del dispositivo (localStorage). No se envían a ningún servidor.</li>
+        <li><strong>¿Qué pasa si borro el navegador o el historial?</strong> Se pierden los datos. Por eso recomendamos hacer backup periódico.</li>
+        <li><strong>¿Puedo usar la app en varios idiomas?</strong> La interfaz del juego está en inglés (inmersión) y el panel de padres en español.</li>
+        <li><strong>¿Se puede exportar el progreso a PDF?</strong> De momento no, pero está en la lista de mejoras futuras.</li>
+      </ul>
+
+      <div class="highlight" style="margin-top:24px;">
+        <strong>✨ Versión 1.0</strong> — Si tienes sugerencias de mejora, apúntalas. Habrá versiones futuras con: topes diarios de puntos, bonus del campeón del día, más modos de juego y exportación de informes.
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" data-tab-content="settings">
+    <div style="text-align:center; padding:20px; background:linear-gradient(135deg, #ede9fe, #f5f3ff); border-radius:var(--radius); margin-bottom:20px;">
+      <h2 style="color:var(--primary); margin-bottom:8px;">🗺️ SpellQuest</h2>
+      <p style="color:var(--text-soft); font-weight:600;">Versión 1.0</p>
+      <p style="color:var(--text-soft); font-size:0.9rem; margin-top:4px;">A spelling adventure for kids</p>
+    </div>
+
+    <h3>⚙️ Ajustes</h3>
+    <label>PIN del panel (4 dígitos):</label>
+    <input type="text" id="new-pin-input" maxlength="4" inputmode="numeric" placeholder="1234">
+    <button id="btn-save-pin" class="btn-primary">💾 Guardar PIN</button>
+    <hr>
+    <h3>🔄 Reset global</h3>
+    <p style="color:var(--text-soft); font-size:0.9rem; margin-bottom:12px;">Borra puntos, insignias, progreso e historial de TODOS los niños. Las semanas y premios se mantienen.</p>
+    <button id="btn-reset-progress-all" class="btn-warning">🔄 Resetear progreso de todos</button>
+    <hr>
+    <h3>🗑️ Borrar todo</h3>
+    <button id="btn-reset-all" class="btn-danger">🗑️ Borrar TODOS los datos</button>
+  </div>
+</section>
+
+<!-- 🔧 MODAL -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<script>
+/* ============================================================
+   💾 STORAGE
+   ============================================================ */
+const STORAGE_KEY = 'spellQuest_v4';
+const APP_VERSION = 4;
+
+const DEFAULT_STATE = {
+  children: [],
+  weeks: [],
+  activeWeekId: null,
+  rewards: [],
+  redemptions: [],
+  progress: {},
+  settings: {
+    threshold: 80,
+    parentPIN: '1234',
+    points: { perWord: 1, perfect: 10, good: 5, low: 0, double: true }
+  }
+};
+
+let state = loadState();
+let selectedChildId = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return migrateFromV3();
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_STATE, ...parsed,
+      settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}), points: { ...DEFAULT_STATE.settings.points, ...((parsed.settings||{}).points||{}) } }
+    };
+  } catch (e) { return JSON.parse(JSON.stringify(DEFAULT_STATE)); }
+}
+
+function migrateFromV3() {
+  // Intentar migrar de v3
+  try {
+    const old = localStorage.getItem('spellQuest_v3');
+    if (!old) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const oldData = JSON.parse(old);
+    const newState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    newState.children = (oldData.children || []).map(c => ({
+      id: c.id, name: c.name, avatar: c.avatar,
+      totalPoints: c.totalPoints || 0,
+      badges: c.badges || [],
+      history: c.history || [],
+      redeemed: c.redeemed || [],
+      masterPool: c.masterPool || [],
+      weeksCompleted: []
+    }));
+    // Migrar currentWeek → weeks
+    if (oldData.currentWeek && oldData.currentWeek.words && oldData.currentWeek.words.length > 0) {
+      const weekId = 'w_' + Date.now();
+      newState.weeks.push({
+        id: weekId,
+        label: oldData.currentWeek.label || 'Semana 1',
+        words: [...oldData.currentWeek.words],
+        createdAt: new Date().toISOString()
+      });
+      newState.activeWeekId = weekId;
+    }
+    newState.rewards = oldData.rewards || [];
+    newState.redemptions = oldData.redemptions || [];
+    newState.settings = oldData.settings || newState.settings;
+    // Migrar progreso: las claves viejas eran childId::weekKey — las renombramos
+    newState.progress = {};
+    // Simplificación: el progreso antiguo se descarta (el niño empieza de cero en la semana migrada)
+    return newState;
+  } catch(e) {
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+}
+
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+function getActiveWeek() {
+  return state.weeks.find(w => w.id === state.activeWeekId) || state.weeks[0] || null;
+}
+
+/* ============================================================
+   🐾 AVATARES
+   ============================================================ */
+const AVATARS = ['🦊','🐼','🦁','🐯','🐨','🐸','🐵','🐶','🐱','🐰','🐻','🐷','🐮','🐔','🐧','🦉','🦄','🐙','🦋','🐢','🐬','🦖','🐝','🦜','🐺'];
+
+/* ============================================================
+   🔊 AUDIO
+   ============================================================ */
+const Audio = (() => {
+  let ctx = null;
+  function getCtx() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+  function tone(freq, dur, type='sine', gain=0.15, delay=0) {
+    try {
+      const c = getCtx(); const start = c.currentTime + delay;
+      const osc = c.createOscillator(); const g = c.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      g.gain.setValueAtTime(gain, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      osc.connect(g); g.connect(c.destination); osc.start(start); osc.stop(start + dur);
+    } catch(e){}
+  }
+  return {
+    correct() { tone(660,0.12); tone(880,0.18,'sine',0.15,0.1); tone(1100,0.2,'sine',0.12,0.22); },
+    wrong() { tone(330,0.15,'sine',0.1); tone(220,0.25,'sine',0.1,0.15); },
+    click() { tone(520,0.06,'triangle',0.08); },
+    win() { [523,659,784,1046,1318].forEach((f,i)=>tone(f,0.2,'sine',0.15,i*0.12)); }
+  };
+})();
+
+/* ============================================================
+   🗣️ SPEECH
+   ============================================================ */
+const Speech = (() => {
+  let voice = null;
+  function pickVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    voice = voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en'));
+  }
+  if ('speechSynthesis' in window) { pickVoice(); window.speechSynthesis.onvoiceschanged = pickVoice; }
+  function sayWord(text) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-GB'; u.rate = 0.8; u.pitch = 1.05;
+    if (voice) u.voice = voice;
+    window.speechSynthesis.speak(u);
+  }
+  return {
+    say(text) {
+      if (!text) return;
+      if (text.includes('/')) {
+        const parts = text.split('/').map(s=>s.trim()).filter(Boolean);
+        parts.forEach((p,i)=> setTimeout(()=>sayWord(p), i*1400));
+      } else sayWord(text);
+    },
+    stop() { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }
+  };
+})();
+
+/* ============================================================
+   🧭 UI
+   ============================================================ */
+const UI = (() => {
+  let navHistory = [];
+  function show(id, addToHistory=true) {
+    const current = document.querySelector('.screen.active');
+    if (current && addToHistory) navHistory.push(current.id);
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+    window.scrollTo(0,0);
+    setTimeout(() => {
+      const input = document.getElementById('answer-input');
+      if (input && document.getElementById('screen-game').classList.contains('active')) input.focus();
+    }, 50);
+  }
+  function back() {
+    const prev = navHistory.pop();
+    if (prev) show(prev, false); else show('screen-home', false);
+  }
+  function toast(msg, type='') {
+    const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),500); }, 2400);
+  }
+  function confetti() {
+    const emojis = ['🎉','⭐','✨','🎊','🌟','💫','🎈'];
+    for (let i=0; i<25; i++) {
+      const c = document.createElement('div'); c.className = 'confetti';
+      c.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      c.style.left = Math.random()*100 + 'vw';
+      c.style.animationDelay = (Math.random()*0.6) + 's';
+      c.style.fontSize = (1.5 + Math.random()*1.8) + 'rem';
+      document.body.appendChild(c);
+      setTimeout(()=>c.remove(), 3500);
+    }
+  }
+  function modal(html) {
+    const overlay = document.getElementById('modal-overlay');
+    const box = document.getElementById('modal-box');
+    box.innerHTML = html;
+    overlay.classList.remove('hidden');
+  }
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  }
+  return { show, back, toast, confetti, modal, closeModal };
+})();
+
+/* ============================================================
+   📝 WORDS
+   ============================================================ */
+const Words = (() => {
+  function parse(raw) {
+    const lines = raw.split(/[\n;]+/).map(l => l.trim()).filter(Boolean);
+    const result = [];
+    lines.forEach(line => {
+      let wordPart = line;
+      const commaIdx = line.lastIndexOf(',');
+      if (commaIdx > -1) wordPart = line.slice(0, commaIdx).trim();
+      const alts = wordPart.split('/').map(w=>w.trim().toLowerCase()).filter(Boolean);
+      if (alts.length > 0) result.push({ alts, display: alts.join(' / ') });
+    });
+    return result;
+  }
+  function evaluate(userAnswer, wordObj) {
+    const raw = (userAnswer||'').trim();
+    if (!raw) return { correct: false, double: false };
+    const norm = raw.toLowerCase().replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim();
+    const alts = wordObj.alts;
+    if (norm.includes('/')) {
+      const parts = norm.split('/').map(s=>s.trim()).filter(Boolean);
+      const allValid = parts.length > 0 && parts.every(p => alts.includes(p));
+      if (allValid && parts.length === alts.length) return { correct: true, double: true };
+      const validParts = parts.filter(p => alts.includes(p));
+      if (validParts.length > 0) return { correct: true, double: false };
+      return { correct: false, double: false };
+    }
+    if (alts.includes(norm)) return { correct: true, double: false };
+    return { correct: false, double: false };
+  }
+  return { parse, evaluate };
+})();
+
+/* ============================================================
+   🎁 REWARDS
+   ============================================================ */
+
+/* ============================================================
+   💰 DAILY POINTS — Cubos diarios con topes
+   ============================================================ */
+const DailyPoints = (() => {
+  const LIMITS = { week: 100, master: 50 };
+  const DUEL_BONUS = 10;
+
+  function today() {
+    return new Date().toISOString().slice(0,10);
+  }
+
+  function resetDailyIfNeeded(child) {
+    if (!child.dailyPoints || child.dailyPoints.date !== today()) {
+      child.dailyPoints = { date: today(), week: 0, master: 0 };
+      return true;
+    }
+    return false;
+  }
+
+  function getBucket(child, bucket) {
+    resetDailyIfNeeded(child);
+    return child.dailyPoints[bucket] || 0;
+  }
+
+  function getRemaining(child, bucket) {
+    return Math.max(0, LIMITS[bucket] - getBucket(child, bucket));
+  }
+
+  function isCapped(child, bucket) {
+    return getBucket(child, bucket) >= LIMITS[bucket];
+  }
+
+  // Suma puntos respetando el tope. Devuelve {actual, capped, remaining}
+  function add(child, earned, bucket) {
+    resetDailyIfNeeded(child);
+    const max = LIMITS[bucket];
+    const current = child.dailyPoints[bucket] || 0;
+    const remaining = Math.max(0, max - current);
+    const actual = Math.min(earned, remaining);
+    child.dailyPoints[bucket] = current + actual;
+    child.totalPoints = (child.totalPoints || 0) + actual;
+    return { actual, capped: actual < earned, remaining: max - child.dailyPoints[bucket] };
+  }
+
+  return { resetDailyIfNeeded, getBucket, getRemaining, isCapped, add, LIMITS, DUEL_BONUS, today };
+})();
+
+const Rewards = (() => {
+  function checkBadges(childId) {
+    const c = state.children.find(x => x.id === childId);
+    if (!c) return [];
+    const earned = [];
+    const p = c.totalPoints || 0;
+    const currentBadges = c.badges || [];
+    const tiers = [{min:100,badge:'🥉'},{min:500,badge:'🥈'},{min:1500,badge:'🥇'},{min:3000,badge:'💎'}];
+    tiers.forEach(t => { if (p >= t.min && !currentBadges.includes(t.badge)) { currentBadges.push(t.badge); earned.push(t.badge); } });
+    c.badges = currentBadges; saveState(); return earned;
+  }
+  function redeem(childId, reward) {
+    const c = state.children.find(x => x.id === childId);
+    if (!c || (c.totalPoints||0) < reward.cost) return false;
+    c.totalPoints -= reward.cost;
+    if (!c.redeemed) c.redeemed = [];
+    const entry = { name: reward.name, cost: reward.cost, date: new Date().toISOString(), delivered: false };
+    c.redeemed.push(entry);
+    state.redemptions.push({ childId, childName: c.name, name: reward.name, cost: reward.cost, date: entry.date, delivered: false });
+    saveState(); return true;
+  }
+  function rejectRedemption(index) {
+    if (index < 0 || index >= state.redemptions.length) return false;
+    const r = state.redemptions[index];
+    const c = state.children.find(x => x.id === r.childId);
+    if (!c) return false;
+    c.totalPoints = (c.totalPoints || 0) + r.cost;
+    if (c.redeemed) {
+      const idx = c.redeemed.findIndex(x => x.name === r.name && x.cost === r.cost && !x.delivered);
+      if (idx >= 0) c.redeemed.splice(idx, 1);
+    }
+    state.redemptions.splice(index, 1);
+    saveState(); return true;
+  }
+  return { checkBadges, redeem, rejectRedemption };
+})();
+
+/* ============================================================
+   🎮 GAME (4 fases para una semana)
+   ============================================================ */
+const Game = (() => {
+  let session = null;
+  let timerInterval = null;
+  const PHASE3_TIMER = 5;
+
+  function start(childId, weekId) {
+    const week = state.weeks.find(w => w.id === weekId);
+    if (!week || !week.words || week.words.length === 0) { UI.toast('No words set yet. Ask your parents!', 'error'); return; }
+    const parsed = Words.parse(week.words.join('\n'));
+    if (parsed.length === 0) { UI.toast('No valid words', 'error'); return; }
+
+    const weekKey = childId + '::' + weekId;
+    const saved = state.progress[weekKey];
+
+    if (saved && saved.completed) {
+      UI.toast('You already finished this week! 🏆', 'success');
+      session = { childId, weekId, week, wordList: parsed, phase: 1, index: 0, correctCount: 0, wrongList: [], startTime: Date.now(), order: [], phasePoints: 0, sessionPoints: 0, weekKey };
+      renderReadWords();
+      UI.show('screen-read-words');
+      return;
+    }
+
+    if (saved && !saved.completed) {
+      session = {
+        childId, weekId, week, wordList: parsed,
+        phase: saved.phase || 2,
+        index: saved.index || 0,
+        correctCount: saved.correctCount || 0,
+        wrongList: saved.wrongList || [],
+        startTime: Date.now(),
+        order: saved.order ? saved.order.map(i => parsed[i]).filter(Boolean) : [],
+        phasePoints: saved.phasePoints || 0,
+        sessionPoints: saved.sessionPoints || 0,
+        weekKey
+      };
+      if (session.order.length === 0) session.order = shuffle([...parsed]);
+      if (session.phase === 1) { renderReadWords(); UI.show('screen-read-words'); }
+      else { renderWord(); UI.show('screen-game'); }
+      UI.toast('Welcome back! 👋', 'success');
+      return;
+    }
+
+    session = {
+      childId, weekId, week, wordList: parsed, phase: 1, index: 0,
+      correctCount: 0, wrongList: [], startTime: Date.now(), order: [],
+      phasePoints: 0, sessionPoints: 0, weekKey
+    };
+    saveProgress();
+    renderReadWords();
+    UI.show('screen-read-words');
+  }
+
+  function saveProgress() {
+    if (!session) return;
+    const orderIndexes = session.order.map(w => session.wordList.findIndex(x => x.alts.join('/') === w.alts.join('/'))).filter(i => i >= 0);
+    state.progress[session.weekKey] = {
+      phase: session.phase, index: session.index,
+      correctCount: session.correctCount, wrongList: session.wrongList,
+      order: orderIndexes, phasePoints: session.phasePoints,
+      sessionPoints: session.sessionPoints, completed: false
+    };
+    saveState();
+  }
+
+  function renderReadWords() {
+    document.getElementById('read-week-label').textContent = session.week.label || 'Week';
+    const list = document.getElementById('words-read-list');
+    list.innerHTML = '';
+    session.wordList.forEach((w, i) => {
+      const div = document.createElement('div');
+      div.className = 'word-read-item';
+      div.innerHTML = `<span>${i+1}. ${w.display}</span><button data-say="${w.alts[0]}">🔊</button>`;
+      list.appendChild(div);
+    });
+    list.querySelectorAll('[data-say]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        Audio.click();
+        const wordObj = session.wordList.find(w => w.alts[0] === btn.dataset.say);
+        if (wordObj) Speech.say(wordObj.alts.join('/'));
+      });
+    });
+  }
+
+  function startPhase() {
+    session.index = 0; session.correctCount = 0; session.wrongList = [];
+    session.startTime = Date.now(); session.phasePoints = 0;
+    session.order = shuffle([...session.wordList]);
+    saveProgress();
+    renderWord();
+    UI.show('screen-game');
+  }
+
+  function renderWord() {
+    clearInterval(timerInterval);
+    const wordObj = session.order[session.index];
+    if (!wordObj) { endPhase(); return; }
+    const total = session.order.length;
+    const phases = {
+      2: { title: 'Phase 2: Copy', inst: '📝 Copy this word:', show: 'always' },
+      3: { title: 'Phase 3: Listen & Copy', inst: '🎧 Listen & copy (5s):', show: 'timed' },
+      4: { title: 'Phase 4: Listen Only', inst: '🎧 Listen and write:', show: 'never' }
+    };
+    const p = phases[session.phase] || phases[2];
+    document.getElementById('game-phase-title').textContent = p.title;
+    document.getElementById('game-progress-text').textContent = `${session.index+1} / ${total}`;
+    document.getElementById('game-progress-fill').style.width = ((session.index) / total * 100) + '%';
+    document.getElementById('game-instruction').textContent = p.inst;
+
+    const wordText = document.getElementById('word-text');
+    const wordDisplay = document.getElementById('word-display');
+    const audioBtn = document.getElementById('btn-play-audio');
+    const input = document.getElementById('answer-input');
+    const checkBtn = document.getElementById('btn-check');
+
+    input.value = ''; input.disabled = false; checkBtn.disabled = false;
+    setTimeout(() => input.focus(), 100);
+
+    const oldTimer = wordDisplay.querySelector('.timer');
+    if (oldTimer) oldTimer.remove();
+
+    if (p.show === 'always') {
+      wordText.textContent = wordObj.display;
+      wordText.style.display = 'inline';
+      wordDisplay.classList.remove('audio-mode');
+      audioBtn.classList.remove('hidden'); audioBtn.disabled = false;
+      setTimeout(()=>Speech.say(wordObj.alts.join('/')), 400);
+    } else if (p.show === 'timed') {
+      wordText.textContent = wordObj.display;
+      wordText.style.display = 'inline';
+      wordDisplay.classList.remove('audio-mode');
+      audioBtn.classList.remove('hidden'); audioBtn.disabled = false;
+      setTimeout(()=>Speech.say(wordObj.alts.join('/')), 400);
+      let remaining = PHASE3_TIMER;
+      const timerEl = document.createElement('div');
+      timerEl.className = 'timer'; timerEl.textContent = `⏱️ ${remaining}`;
+      wordDisplay.appendChild(timerEl);
+      timerInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(timerInterval); timerEl.remove();
+          wordText.textContent = '*****';
+          wordDisplay.classList.add('audio-mode');
+        } else timerEl.textContent = `⏱️ ${remaining}`;
+      }, 1000);
+    } else {
+      wordText.textContent = '*****';
+      wordDisplay.classList.add('audio-mode');
+      audioBtn.classList.remove('hidden'); audioBtn.disabled = false;
+      setTimeout(()=>Speech.say(wordObj.alts.join('/')), 400);
+    }
+  }
+
+  function playAudio() {
+    const wordObj = session.order[session.index];
+    Audio.click();
+    Speech.say(wordObj.alts.join('/'));
+  }
+
+  let isChecking = false;
+  function check() {
+    if (isChecking) return;
+    isChecking = true;
+    const input = document.getElementById('answer-input');
+    const checkBtn = document.getElementById('btn-check');
+    input.disabled = true; checkBtn.disabled = true;
+    const userAnswer = input.value.trim();
+    const wordObj = session.order[session.index];
+    const result = Words.evaluate(userAnswer, wordObj);
+    const basePts = state.settings.points.perWord || 1;
+    const doubleEnabled = state.settings.points.double !== false;
+    let earned = 0;
+    if (result.correct) {
+      earned = basePts * (result.double && doubleEnabled ? 2 : 1);
+      session.correctCount++;
+      session.phasePoints += earned;
+      saveProgress();
+      Audio.correct(); UI.confetti();
+      showFeedback(true, wordObj, userAnswer, earned, result.double);
+    } else {
+      session.wrongList.push({ word: wordObj.display, yours: userAnswer });
+      saveProgress();
+      Audio.wrong();
+      showFeedback(false, wordObj, userAnswer, 0, false);
+    }
+  }
+
+  function showFeedback(correct, wordObj, yours, earned, doubled) {
+    document.getElementById('feedback-icon').textContent = correct ? '🎉' : '💪';
+    const title = document.getElementById('feedback-title');
+    title.textContent = correct ? 'GREAT JOB!' : 'Almost!';
+    title.style.color = correct ? 'var(--success)' : 'var(--warning)';
+    const points = document.getElementById('feedback-points');
+    if (correct) {
+      points.style.display = 'block';
+      points.textContent = doubled ? `+${earned} points (DOUBLE! 🌟)` : `+${earned} point${earned!==1?'s':''}`;
+    } else points.style.display = 'none';
+    const streak = document.getElementById('feedback-streak');
+    streak.textContent = (correct && session.correctCount >= 3) ? `🔥 Streak x${session.correctCount}!` : '';
+    const corr = document.getElementById('feedback-correction');
+    if (correct) corr.classList.add('hidden');
+    else {
+      corr.classList.remove('hidden');
+      document.getElementById('feedback-yours').textContent = yours || '(empty)';
+      document.getElementById('feedback-correct').textContent = wordObj.display;
+      corr.dataset.word = wordObj.alts.join('/');
+    }
+    UI.show('screen-feedback');
+  }
+
+  function nextWord() {
+    isChecking = false;
+    session.index++;
+    if (session.index >= session.order.length) endPhase();
+    else { saveProgress(); renderWord(); UI.show('screen-game'); }
+  }
+
+  function endPhase() {
+    const total = session.order.length;
+    const correct = total - session.wrongList.length;
+    const pct = Math.round(correct / total * 100);
+    const seconds = Math.round((Date.now() - session.startTime) / 1000);
+    const threshold = state.settings.threshold || 80;
+    const passed = pct >= threshold;
+
+    let bonus = 0;
+    const pts = state.settings.points;
+    if (pct === 100) bonus = pts.perfect || 10;
+    else if (pct >= 70) bonus = pts.good || 5;
+    else bonus = pts.low || 0;
+
+    let phaseTotal = session.phasePoints;
+    if (passed) { phaseTotal += bonus; session.sessionPoints += phaseTotal; }
+
+    const phaseNames = { 2: 'Phase 2: Copy', 3: 'Phase 3: Listen & Copy', 4: 'Phase 4: Listen Only' };
+    document.getElementById('summary-title').textContent = `${phaseNames[session.phase]} Complete! 🏁`;
+    document.getElementById('summary-correct').textContent = `${correct} / ${total}`;
+    document.getElementById('summary-accuracy').textContent = pct + '%';
+    document.getElementById('summary-points').textContent = passed ? `+${phaseTotal}` + (bonus > 0 ? ` (bonus +${bonus})` : '') : '0 (repeat this phase)';
+    document.getElementById('summary-time').textContent = `${Math.floor(seconds/60)}m ${seconds%60}s`;
+    const status = document.getElementById('summary-status');
+    status.textContent = passed ? '✅ GREAT!' : '💪 Try again!';
+    status.className = 'summary-status ' + (passed ? 'passed' : 'failed');
+
+    const review = document.getElementById('summary-review');
+    const reviewList = document.getElementById('summary-review-list');
+    if (session.wrongList.length > 0) {
+      review.classList.remove('hidden');
+      reviewList.innerHTML = '';
+      session.wrongList.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${item.word}</strong> — you wrote: <em>${item.yours || '(empty)'}</em>`;
+        reviewList.appendChild(li);
+      });
+    } else review.classList.add('hidden');
+
+    saveProgress();
+
+    if (!passed) {
+      document.getElementById('btn-next-phase').style.display = 'none';
+      UI.show('screen-phase-summary');
+      return;
+    }
+
+    if (session.phase === 4) {
+      const child = state.children.find(c => c.id === session.childId);
+      if (child) {
+        // Aplicar tope diario del cubo SEMANA (100 pts)
+        const result = DailyPoints.add(child, session.sessionPoints, 'week');
+        session.sessionPointsActual = result.actual;
+        session.sessionPointsCapped = result.capped;
+        if (!child.history) child.history = [];
+        child.history.push({
+          week: session.week.label,
+          weekId: session.weekId,
+          date: new Date().toISOString(),
+          points: session.sessionPoints
+        });
+        // Añadir palabras al Master Pool del niño
+        if (!child.masterPool) child.masterPool = [];
+        const poolSet = new Set(child.masterPool.map(w => w.toLowerCase()));
+        session.wordList.forEach(w => poolSet.add(w.alts.join('/').toLowerCase()));
+        child.masterPool = [...poolSet];
+        // Marcar semana completada
+        if (!child.weeksCompleted) child.weeksCompleted = [];
+        if (!child.weeksCompleted.includes(session.weekId)) child.weeksCompleted.push(session.weekId);
+      }
+      state.progress[session.weekKey] = { ...(state.progress[session.weekKey]||{}), completed: true };
+      saveState();
+      Rewards.checkBadges(session.childId);
+
+      setTimeout(() => {
+        document.getElementById('week-complete-points').textContent = `+${session.sessionPoints} pts this session`;
+        document.getElementById('week-complete-badges').textContent = (child?.badges || []).join(' ');
+        renderWeekRewards(child);
+        Audio.win(); UI.confetti();
+        UI.show('screen-week-complete');
+      }, 400);
+      return;
+    }
+
+    const nextBtn = document.getElementById('btn-next-phase');
+    nextBtn.style.display = 'block';
+    nextBtn.textContent = `➡ Phase ${session.phase + 1}`;
+    UI.show('screen-phase-summary');
+  }
+
+  function renderWeekRewards(child) {
+    const list = document.getElementById('week-rewards-list');
+    list.innerHTML = '';
+    if (!child) return;
+    if (state.rewards.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-soft);">No rewards set yet.</p>';
+      return;
+    }
+    state.rewards.forEach((r) => {
+      const canAfford = (child.totalPoints || 0) >= r.cost;
+      const div = document.createElement('div');
+      div.className = 'reward-card' + (canAfford ? ' affordable' : '');
+      div.innerHTML = `
+        <div>
+          <div class="reward-name">🎁 ${r.name}</div>
+          <div class="reward-cost">${r.cost} points</div>
+        </div>
+        <button class="${canAfford ? 'btn-success' : 'btn-secondary'}" ${canAfford ? '' : 'disabled'}>
+          ${canAfford ? 'Redeem' : 'Locked'}
+        </button>`;
+      const btn = div.querySelector('button');
+      if (canAfford) {
+        btn.addEventListener('click', () => {
+          if (confirm(`Redeem "${r.name}" for ${r.cost} points?`)) {
+            if (Rewards.redeem(child.id, r)) {
+              Audio.win(); UI.confetti();
+              UI.toast(`🎁 Redeemed: ${r.name}!`, 'success');
+              renderWeekRewards(child);
+            }
+          }
+        });
+      }
+      list.appendChild(div);
+    });
+  }
+
+  function nextPhase() {
+    isChecking = false;
+    if (session.phase < 4) { session.phase++; startPhase(); }
+  }
+  function retryPhase() {
+    isChecking = false;
+    session.index = 0; session.correctCount = 0; session.wrongList = [];
+    session.phasePoints = 0; session.startTime = Date.now();
+    session.order = shuffle([...session.wordList]);
+    saveProgress();
+    renderWord();
+    UI.show('screen-game');
+  }
+  function getSession() { return session; }
+  function shuffle(arr) {
+    for (let i = arr.length-1; i>0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    } return arr;
+  }
+
+  return { start, startPhase, playAudio, check, nextWord, nextPhase, retryPhase, getSession, renderReadWords };
+})();
+
+/* ============================================================
+   ⭐ STARS
+   ============================================================ */
+const Stars = (() => {
+  function open() { render(); UI.show('screen-stars'); }
+  function render() {
+    const container = document.getElementById('stars-ranking');
+    container.innerHTML = '';
+    if (state.children.length === 0) {
+      container.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No children yet.</p>';
+      return;
+    }
+    const sorted = [...state.children].sort((a, b) => (b.totalPoints||0) - (a.totalPoints||0));
+    sorted.forEach((c, i) => {
+      const pos = i + 1;
+      const posEmoji = pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : `#${pos}`;
+      let cls = 'ranking-row';
+      if (pos === 1) cls += ' first';
+      else if (pos === 2) cls += ' second';
+      else if (pos === 3) cls += ' third';
+      const div = document.createElement('div');
+      div.className = cls;
+      div.innerHTML = `
+        <span class="ranking-pos">${posEmoji}</span>
+        <span class="ranking-avatar">${c.avatar || '👤'}</span>
+        <span class="ranking-name">${c.name}<br><small style="color:var(--text-soft);font-weight:500;">${(c.badges||[]).join(' ') || ''}</small></span>
+        <span class="ranking-points">⭐ ${c.totalPoints || 0}</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+  return { open, render };
+})();
+
+/* ============================================================
+   📚 CHOOSE WEEK
+   ============================================================ */
+const ChooseWeek = (() => {
+  function open(childId) { render(childId); UI.show('screen-choose-week'); }
+  function render(childId) {
+    const list = document.getElementById('choose-week-list');
+    list.innerHTML = '';
+    if (state.weeks.length === 0) {
+      list.innerHTML = '<p style="text-align:center;color:#999;">No weeks saved yet.</p>';
+      return;
+    }
+    state.weeks.forEach(w => {
+      const key = childId + '::' + w.id;
+      const prog = state.progress[key];
+      const isActive = w.id === state.activeWeekId;
+      let status = '⚪ New';
+      if (prog && prog.completed) status = '🟢 Done';
+      else if (prog) status = '🟡 In progress';
+      const div = document.createElement('div');
+      div.className = 'week-card' + (isActive ? ' active' : '');
+      div.innerHTML = `
+        <div class="week-info">
+          <div class="week-label">${w.label}${isActive ? '<span class="week-badge">CURRENT</span>' : ''}</div>
+          <div class="week-meta">${w.words.length} words · ${status}</div>
+        </div>
+        <div class="week-actions">
+          <button class="activate-btn" data-play="${w.id}">▶ PLAY</button>
+        </div>`;
+      list.appendChild(div);
+    });
+    list.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => {
+      Audio.click();
+      Game.start(childId, b.dataset.play);
+    }));
+  }
+  return { open };
+})();
+
+/* ============================================================
+   🎁 WALLET
+   ============================================================ */
+const Wallet = (() => {
+  function open(childId) { render(childId); UI.show('screen-wallet'); }
+  function render(childId) {
+    const child = state.children.find(c => c.id === childId);
+    if (!child) return;
+    document.getElementById('wallet-points').textContent = `⭐ ${child.totalPoints || 0}`;
+    const rewardsBox = document.getElementById('wallet-rewards');
+    rewardsBox.innerHTML = '';
+    if (state.rewards.length === 0) {
+      rewardsBox.innerHTML = '<p style="text-align:center;color:#999;">No rewards set yet.</p>';
+    } else {
+      state.rewards.forEach(r => {
+        const canAfford = (child.totalPoints || 0) >= r.cost;
+        const div = document.createElement('div');
+        div.className = 'reward-card' + (canAfford ? ' affordable' : '');
+        div.innerHTML = `
+          <div><div class="reward-name">🎁 ${r.name}</div><div class="reward-cost">${r.cost} points</div></div>
+          <button class="${canAfford ? 'btn-success' : 'btn-secondary'}" ${canAfford ? '' : 'disabled'}>
+            ${canAfford ? 'Redeem' : 'Locked'}
+          </button>`;
+        const btn = div.querySelector('button');
+        if (canAfford) {
+          btn.addEventListener('click', () => {
+            if (confirm(`Redeem "${r.name}" for ${r.cost} points?`)) {
+              if (Rewards.redeem(child.id, r)) {
+                Audio.win(); UI.confetti();
+                UI.toast(`🎁 Redeemed: ${r.name}!`, 'success');
+                render(childId);
+              }
+            }
+          });
+        }
+        rewardsBox.appendChild(div);
+      });
+    }
+    const histBox = document.getElementById('wallet-history');
+    histBox.innerHTML = '';
+    const redeemed = (child.redeemed || []).slice().reverse();
+    if (redeemed.length === 0) {
+      histBox.innerHTML = '<h3>My rewards history</h3><p style="color:var(--text-soft);">Nothing yet! Keep playing 🎯</p>';
+    } else {
+      histBox.innerHTML = '<h3>My rewards history</h3>';
+      redeemed.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'history-item ' + (r.delivered ? 'delivered' : 'pending');
+        div.innerHTML = `<span>🎁 ${r.name} (-${r.cost} pts)</span><span>${r.delivered ? '✅ delivered' : '⏳ waiting'}</span>`;
+        histBox.appendChild(div);
+      });
+    }
+  }
+  return { open, render };
+})();
+
+/* ============================================================
+   🏆 MASTER MODE
+   ============================================================ */
+const Master = (() => {
+  function isUnlocked(childId) {
+    const c = state.children.find(x => x.id === childId);
+    if (!c) return false;
+    return (c.weeksCompleted || []).length >= 2;
+  }
+  function menu() {
+    if (!isUnlocked(selectedChildId)) {
+      const c = state.children.find(x => x.id === selectedChildId);
+      const done = (c?.weeksCompleted || []).length;
+      UI.toast(`Complete ${2 - done} more week${2-done!==1?'s':''} to unlock! 🔒`, 'error');
+      return;
+    }
+    const c = state.children.find(x => x.id === selectedChildId);
+    document.getElementById('master-pool-count').textContent = `Words in your collection: ${(c.masterPool || []).length}`;
+    UI.show('screen-master');
+  }
+  function startMode(mode) {
+    if (mode === 'random') return RandomReview.start(selectedChildId);
+    if (mode === 'time') return TimeAttack.setup(selectedChildId);
+    if (mode === 'duel') return Duel.setup();
+  }
+  return { menu, startMode, isUnlocked };
+})();
+
+/* ============================================================
+   🎲 RANDOM REVIEW
+   ============================================================ */
+const RandomReview = (() => {
+  function start(childId) {
+    const c = state.children.find(x => x.id === childId);
+    if (!c || !c.masterPool || c.masterPool.length === 0) { UI.toast('No words in pool yet', 'error'); return; }
+    // Creamos una "semana virtual"
+    const virtualWeekId = 'master_' + Date.now();
+    state.weeks.push({
+      id: virtualWeekId,
+      label: '🎲 Master Review',
+      words: [...c.masterPool],
+      createdAt: new Date().toISOString(),
+      isVirtual: true
+    });
+    // Lanzamos Game con esa semana
+    Game.start(childId, virtualWeekId);
+  }
+  return { start };
+})();
+
+/* ============================================================
+   ⏱️ TIME ATTACK
+   ============================================================ */
+const TimeAttack = (() => {
+  let timer = null;
+  let game = null;
+  const DURATION = 60;
+
+  function setup(childId) {
+    UI.show('screen-time-setup');
+    // Guardamos childId para el click
+    document.querySelectorAll('[data-time-mode]').forEach(b => {
+      b.onclick = () => start(childId, b.dataset.timeMode);
+    });
+  }
+
+  function start(childId, mode) {
+    const c = state.children.find(x => x.id === childId);
+    const pool = c.masterPool || [];
+    if (pool.length === 0) { UI.toast('No words in pool', 'error'); return; }
+    const parsed = Words.parse(pool.join('\n'));
+    if (parsed.length === 0) { UI.toast('No valid words', 'error'); return; }
+
+    game = {
+      childId, mode, score: 0, best: 0, remaining: DURATION,
+      queue: shuffle([...parsed]), current: null,
+      startTime: Date.now()
+    };
+    nextWord();
+    UI.show('screen-time-game');
+    document.getElementById('time-score-display').textContent = 'Score: 0';
+    document.getElementById('time-counter').textContent = DURATION;
+    clearInterval(timer);
+    timer = setInterval(() => {
+      game.remaining--;
+      document.getElementById('time-counter').textContent = Math.max(0, game.remaining);
+      if (game.remaining <= 0) end();
+    }, 1000);
+  }
+
+  function nextWord() {
+    if (!game) return;
+    if (game.queue.length === 0) game.queue = shuffle([...Words.parse((state.children.find(x=>x.id===game.childId).masterPool||[]).join('\n'))]);
+    game.current = game.queue.shift();
+    const wordText = document.getElementById('time-word-text');
+    const wordDisplay = document.getElementById('time-word-display');
+    const audioBtn = document.getElementById('btn-time-audio');
+    const input = document.getElementById('time-answer-input');
+    input.value = ''; input.disabled = false;
+    setTimeout(()=>input.focus(), 100);
+    wordDisplay.classList.remove('audio-mode');
+    if (game.mode === 'copy') {
+      document.getElementById('time-instruction').textContent = '📝 Copy this word:';
+      wordText.textContent = game.current.display;
+      audioBtn.classList.add('hidden');
+    } else if (game.mode === 'listen-write') {
+      document.getElementById('time-instruction').textContent = '🎧 Listen and write:';
+      wordText.textContent = '*****';
+      wordDisplay.classList.add('audio-mode');
+      audioBtn.classList.remove('hidden');
+      setTimeout(()=>Speech.say(game.current.alts.join('/')), 300);
+    } else {
+      document.getElementById('time-instruction').textContent = '🔊 Listen only:';
+      wordText.textContent = '*****';
+      wordDisplay.classList.add('audio-mode');
+      audioBtn.classList.remove('hidden');
+      setTimeout(()=>Speech.say(game.current.alts.join('/')), 300);
+    }
+  }
+
+  function check() {
+    if (!game || !game.current) return;
+    const input = document.getElementById('time-answer-input');
+    input.disabled = true;
+    const result = Words.evaluate(input.value.trim(), game.current);
+    if (result.correct) {
+      game.score++;
+      Audio.correct();
+      document.getElementById('time-score-display').textContent = 'Score: ' + game.score;
+    } else {
+      Audio.wrong();
+    }
+    setTimeout(() => {
+      if (game.remaining > 0) nextWord();
+    }, 250);
+  }
+
+  function playAudio() { if (game && game.current) { Audio.click(); Speech.say(game.current.alts.join('/')); } }
+
+  function end() {
+    clearInterval(timer);
+    const child = state.children.find(c => c.id === game.childId);
+    const pts = 0; // ⚠️ Time Attack NO da puntos (solo diversión)
+    if (child) {
+      if (!child.bestTimeAttack) child.bestTimeAttack = 0;
+      if (game.score > child.bestTimeAttack) child.bestTimeAttack = game.score;
+    }
+    saveState();
+    Rewards.checkBadges(game.childId);
+    document.getElementById('time-result-score').textContent = `${game.score} words`;
+    document.getElementById('time-result-points').textContent = `+${pts} points`;
+    const best = child.bestTimeAttack || 0;
+    document.getElementById('time-result-best').textContent = game.score >= best ? '🏅 New personal best!' : `Personal best: ${best}`;
+    Audio.win(); UI.confetti();
+    UI.show('screen-time-result');
+  }
+
+  function playAgain() {
+    if (!game) return;
+    start(game.childId, game.mode);
+  }
+
+  function shuffle(arr) { for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+  return { setup, start, check, playAudio, playAgain };
+})();
+
+/* ============================================================
+   ⚔️ DUEL
+   ============================================================ */
+const Duel = (() => {
+  let game = null;
+
+  const selectedPlayers = new Set();
+
+  function setup() {
+    if (state.children.length < 2) { UI.toast('Necesitas al menos 2 niños', 'error'); return; }
+    selectedPlayers.clear();
+    renderPlayers();
+    UI.show('screen-duel-setup');
+  }
+
+  function renderPlayers() {
+    const list = document.getElementById('duel-players-list');
+    list.innerHTML = '';
+    state.children.forEach(c => {
+      const isSelected = selectedPlayers.has(c.id);
+      const div = document.createElement('div');
+      div.className = 'duel-player-card' + (isSelected ? ' selected' : '');
+      div.innerHTML = `
+        <span class="player-avatar">${c.avatar || '👤'}</span>
+        <span class="player-name">${c.name}</span>
+        <span class="player-check">✅</span>
+      `;
+      div.addEventListener('click', () => {
+        Audio.click();
+        if (selectedPlayers.has(c.id)) selectedPlayers.delete(c.id);
+        else selectedPlayers.add(c.id);
+        renderPlayers();
+      });
+      list.appendChild(div);
+    });
+  }
+
+  function start() {
+    const checked = [...selectedPlayers];
+    if (checked.length < 2) { UI.toast('Elige al menos 2 jugadores', 'error'); return; }
+    const rounds = parseInt(document.getElementById('duel-rounds').value) || 12;
+
+    // Cogemos el pool más pequeño de los jugadores
+    const players = checked.map(id => {
+      const c = state.children.find(x => x.id === id);
+      return { id, name: c.name, avatar: c.avatar, masterPool: c.masterPool || [], score: 0 };
+    });
+    const smallestPool = players.reduce((min, p) => p.masterPool.length < min.length ? p.masterPool : min, players[0].masterPool);
+    if (smallestPool.length === 0) { UI.toast('Algún jugador no tiene palabras en su pool', 'error'); return; }
+
+    const parsed = Words.parse(smallestPool.join('\n'));
+    const words = shuffle([...parsed]).slice(0, rounds);
+
+    game = {
+      players,
+      words,
+      rounds: words.length,
+      currentRound: 0,
+      currentTurnIndex: 0,
+      scores: players.map(() => 0),
+      mode: 'copy' // Por defecto
+    };
+
+    // Mostrar solo 2 jugadores en cabecera (simplificación)
+    document.getElementById('duel-p1-avatar').textContent = players[0].avatar;
+    document.getElementById('duel-p1-name').textContent = players[0].name;
+    document.getElementById('duel-p2-avatar').textContent = players[1].avatar;
+    document.getElementById('duel-p2-name').textContent = players[1].name;
+    document.getElementById('duel-p1-score').textContent = '0';
+    document.getElementById('duel-p2-score').textContent = '0';
+
+    renderTurn();
+    UI.show('screen-duel-game');
+  }
+
+  function renderTurn() {
+    if (!game) return;
+    if (game.currentRound >= game.rounds) return end();
+    const word = game.words[game.currentRound];
+    const player = game.players[game.currentTurnIndex];
+    document.getElementById('duel-round-text').textContent = `${game.currentRound+1} / ${game.rounds}`;
+    document.getElementById('duel-turn').textContent = `Turn: ${player.avatar} ${player.name}`;
+    document.getElementById('duel-instruction').textContent = '📝 Copy this word:';
+    document.getElementById('duel-word-text').textContent = word.display;
+    document.getElementById('duel-word-display').classList.remove('audio-mode');
+    document.getElementById('btn-duel-audio').classList.remove('hidden');
+    document.getElementById('duel-answer-input').value = '';
+    document.getElementById('duel-answer-input').disabled = false;
+    setTimeout(()=>document.getElementById('duel-answer-input').focus(), 100);
+  }
+
+  function playAudio() {
+    if (!game) return;
+    const word = game.words[game.currentRound];
+    Audio.click(); Speech.say(word.alts.join('/'));
+  }
+
+  let isChecking = false;
+  function check() {
+    if (isChecking || !game) return;
+    isChecking = true;
+    const input = document.getElementById('duel-answer-input');
+    input.disabled = true;
+    const word = game.words[game.currentRound];
+    const result = Words.evaluate(input.value.trim(), word);
+    if (result.correct) { game.scores[game.currentTurnIndex]++; Audio.correct(); }
+    else Audio.wrong();
+    updateScores();
+    setTimeout(() => {
+      isChecking = false;
+      game.currentTurnIndex++;
+      if (game.currentTurnIndex >= game.players.length) {
+        game.currentTurnIndex = 0;
+        game.currentRound++;
+      }
+      if (game.currentRound >= game.rounds) end();
+      else renderTurn();
+    }, 500);
+  }
+
+  function updateScores() {
+    if (!game) return;
+    document.getElementById('duel-p1-score').textContent = game.scores[0] || 0;
+    document.getElementById('duel-p2-score').textContent = game.scores[1] || 0;
+  }
+
+  function end() {
+    if (!game) return;
+    const maxScore = Math.max(...game.scores);
+    const winners = game.players.filter((p, i) => game.scores[i] === maxScore);
+    const scoreStr = game.scores.join(' - ');
+    document.getElementById('duel-result-score').textContent = scoreStr;
+    if (winners.length === 1) {
+      document.getElementById('duel-result-icon').textContent = '🏆';
+      document.getElementById('duel-result-title').textContent = `WINNER: ${winners[0].avatar} ${winners[0].name}!`;
+    } else {
+      document.getElementById('duel-result-icon').textContent = '🤝';
+      document.getElementById('duel-result-title').textContent = '¡EMPATE!';
+    }
+    // Sumar puntos
+    const pointsBox = document.getElementById('duel-result-points');
+    pointsBox.innerHTML = '<h3 style="color:var(--primary); margin-bottom:12px;">Points earned:</h3>';
+    game.players.forEach((p, i) => {
+      // ⚠️ El Duel NO da puntos directos (solo cuenta para el "Campeón del día" en Parche 2)
+      const div = document.createElement('div');
+      div.style.marginBottom = '8px';
+      div.style.fontSize = '1.2rem';
+      div.innerHTML = `${p.avatar} <strong>${p.name}</strong>: ${game.scores[i]} aciertos`;
+      pointsBox.appendChild(div);
+    });
+    saveState();
+    game.players.forEach(p => Rewards.checkBadges(p.id));
+    Audio.win(); UI.confetti();
+    UI.show('screen-duel-result');
+  }
+
+  function shuffle(arr) { for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+  return { setup, start, check, playAudio };
+})();
+
+/* ============================================================
+   💾 BACKUP
+   ============================================================ */
+const Backup = (() => {
+  function buildPayload() {
+    return { app: 'SpellQuest', version: APP_VERSION, exportedAt: new Date().toISOString(), data: state };
+  }
+  function downloadFile() {
+    const payload = buildPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `spellquest-backup-${date}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    UI.toast('📥 Backup descargado', 'success');
+  }
+  async function copyToClipboard() {
+    const text = JSON.stringify(buildPayload(), null, 2);
+    try { await navigator.clipboard.writeText(text); UI.toast('📋 Copiado al portapapeles', 'success'); }
+    catch (e) {
+      const ta = document.getElementById('textarea-import');
+      ta.value = text; ta.select();
+      UI.toast('📋 Copiado (usa Ctrl+C)', 'success');
+    }
+  }
+  function validatePayload(payload) {
+    if (!payload || typeof payload !== 'object') return false;
+    if (payload.app !== 'SpellQuest') return false;
+    if (!payload.data || typeof payload.data !== 'object') return false;
+    return true;
+  }
+  function applyImport(payload) {
+    if (!validatePayload(payload)) { UI.toast('❌ Archivo no válido', 'error'); return; }
+    if (!confirm('⚠️ Se REEMPLAZARÁN todos los datos actuales. ¿Continuar?')) return;
+    try { localStorage.setItem(STORAGE_KEY + '_backup_before_import', JSON.stringify(buildPayload())); } catch(e){}
+    state = { ...DEFAULT_STATE, ...payload.data, settings: { ...DEFAULT_STATE.settings, ...(payload.data.settings||{}), points: { ...DEFAULT_STATE.settings.points, ...((payload.data.settings||{}).points||{}) } } };
+    saveState();
+    UI.toast('✅ Datos importados', 'success');
+    setTimeout(() => location.reload(), 800);
+  }
+  function importFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try { applyImport(JSON.parse(e.target.result)); }
+      catch (err) { UI.toast('❌ JSON inválido', 'error'); }
+    };
+    reader.readAsText(file);
+  }
+  function importFromTextarea() {
+    const raw = document.getElementById('textarea-import').value.trim();
+    if (!raw) { UI.toast('Pega primero los datos', 'error'); return; }
+    try { applyImport(JSON.parse(raw)); }
+    catch (err) { UI.toast('❌ JSON inválido', 'error'); }
+  }
+  return { downloadFile, copyToClipboard, importFromFile, importFromTextarea };
+})();
+
+/* ============================================================
+   👨‍👩‍👧 PARENT PANEL
+   ============================================================ */
+const ParentPanel = (() => {
+  let selectedAvatar = null;
+
+  function open() {
+    UI.show('screen-pin');
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').classList.add('hidden');
+    setTimeout(()=>document.getElementById('pin-input').focus(), 100);
+  }
+  function submitPin() {
+    const pin = document.getElementById('pin-input').value;
+    if (pin === state.settings.parentPIN) { render(); UI.show('screen-parent'); }
+    else { document.getElementById('pin-error').classList.remove('hidden'); Audio.wrong(); }
+  }
+  function renderAvatarPicker() {
+    const picker = document.getElementById('avatar-picker-new');
+    picker.innerHTML = '';
+    AVATARS.forEach(a => {
+      const btn = document.createElement('button');
+      btn.className = 'avatar-option' + (a === selectedAvatar ? ' selected' : '');
+      btn.textContent = a; btn.type = 'button';
+      btn.addEventListener('click', () => { selectedAvatar = a; renderAvatarPicker(); });
+      picker.appendChild(btn);
+    });
+  }
+  function render() {
+    // Niños
+    const list = document.getElementById('parent-children-list');
+    list.innerHTML = state.children.length === 0 ? '<p style="color:#999;">(ninguno todavía)</p>' : '';
+    state.children.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'parent-item';
+      const done = (c.weeksCompleted || []).length;
+      div.innerHTML = `<span>${c.avatar || '👤'} <strong>${c.name}</strong> — ${c.totalPoints||0} pts · ${done} semanas · ${(c.masterPool||[]).length} palabras pool</span>
+                       <div class="item-actions">
+                         <button class="reset-btn" data-reset="${c.id}">🔄 Reset</button>
+                         <button class="del-btn" data-del="${c.id}">🗑️ Borrar</button>
+                       </div>`;
+      list.appendChild(div);
+    });
+    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      if (confirm('¿Borrar este niño y su progreso?')) {
+        state.children = state.children.filter(c => c.id !== b.dataset.del);
+        Object.keys(state.progress).forEach(k => { if (k.startsWith(b.dataset.del + '::')) delete state.progress[k]; });
+        saveState(); render(); renderHome();
+      }
+    }));
+    list.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => openResetModal(b.dataset.reset)));
+
+    renderAvatarPicker();
+
+    // Semanas
+    const wlist = document.getElementById('parent-weeks-list');
+    wlist.innerHTML = state.weeks.length === 0 ? '<p style="color:#999;">(ninguna todavía)</p>' : '';
+    state.weeks.filter(w => !w.isVirtual).forEach(w => {
+      const isActive = w.id === state.activeWeekId;
+      const div = document.createElement('div');
+      div.className = 'week-card' + (isActive ? ' active' : '');
+      div.innerHTML = `
+        <div class="week-info">
+          <div class="week-label">${w.label}${isActive ? '<span class="week-badge">ACTUAL</span>' : ''}</div>
+          <div class="week-meta">${w.words.length} palabras · Creada ${new Date(w.createdAt).toLocaleDateString()}</div>
+        </div>
+        <div class="week-actions">
+          ${!isActive ? `<button class="activate-btn" data-activate="${w.id}">🔄 Activar</button>` : ''}
+          <button class="edit-btn" data-edit="${w.id}">✏️ Editar</button>
+          ${state.weeks.length > 1 ? `<button class="del-btn" data-del-w="${w.id}">🗑️</button>` : ''}
+        </div>`;
+      wlist.appendChild(div);
+    });
+    wlist.querySelectorAll('[data-activate]').forEach(b => b.addEventListener('click', () => {
+      state.activeWeekId = b.dataset.activate; saveState(); render();
+      UI.toast('✅ Semana activada', 'success');
+    }));
+    wlist.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEditWeekModal(b.dataset.edit)));
+    wlist.querySelectorAll('[data-del-w]').forEach(b => b.addEventListener('click', () => {
+      if (confirm('¿Borrar esta semana y todo su progreso?')) {
+        state.weeks = state.weeks.filter(w => w.id !== b.dataset.delW);
+        Object.keys(state.progress).forEach(k => { if (k.endsWith('::' + b.dataset.delW)) delete state.progress[k]; });
+        if (state.activeWeekId === b.dataset.delW) state.activeWeekId = state.weeks[0]?.id || null;
+        saveState(); render();
+      }
+    }));
+
+    document.getElementById('threshold-input').value = state.settings.threshold || 80;
+
+    // Puntos
+    const pts = state.settings.points || {};
+    document.getElementById('pts-word').value = pts.perWord || 1;
+    document.getElementById('pts-perfect').value = pts.perfect || 10;
+    document.getElementById('pts-good').value = pts.good || 5;
+    document.getElementById('pts-low').value = pts.low || 0;
+    document.getElementById('pts-double').checked = pts.double !== false;
+
+    // Premios
+    const rlist = document.getElementById('parent-rewards-list');
+    rlist.innerHTML = state.rewards.length === 0 ? '<p style="color:#999;">(ninguno)</p>' : '';
+    state.rewards.forEach((r, i) => {
+      const div = document.createElement('div');
+      div.className = 'parent-item';
+      div.innerHTML = `<span>🎁 <strong>${r.name}</strong> — ${r.cost} pts</span>
+                       <button class="del-btn" data-del-r="${i}">🗑️</button>`;
+      rlist.appendChild(div);
+    });
+    rlist.querySelectorAll('[data-del-r]').forEach(b => b.addEventListener('click', () => {
+      state.rewards.splice(+b.dataset.delR, 1); saveState(); render();
+    }));
+
+    const red = document.getElementById('parent-redemptions');
+    const pending = state.redemptions.filter(r => !r.delivered);
+    if (pending.length === 0) red.innerHTML = '<p style="color:#999;">(sin canjes pendientes)</p>';
+    else {
+      red.innerHTML = '';
+      pending.forEach((r) => {
+        const idx = state.redemptions.indexOf(r);
+        const div = document.createElement('div');
+        div.className = 'parent-item';
+        div.innerHTML = `<span>🎁 <strong>${r.childName}</strong> → ${r.name} (${r.cost} pts)</span>
+                         <div class="item-actions">
+                           <button class="deliver-btn" data-deliver="${idx}">✅ Entregado</button>
+                           <button class="reject-btn" data-reject="${idx}">❌ Rechazar</button>
+                         </div>`;
+        red.appendChild(div);
+      });
+      red.querySelectorAll('[data-deliver]').forEach(b => b.addEventListener('click', () => {
+        state.redemptions[+b.dataset.deliver].delivered = true;
+        saveState(); render();
+      }));
+      red.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', () => {
+        if (confirm('¿Rechazar? Se le devolverán los puntos.')) {
+          Rewards.rejectRedemption(+b.dataset.reject); render();
+          UI.toast('❌ Canje rechazado, puntos devueltos', 'success');
+        }
+      }));
+    }
+
+    // Informes
+    const reports = document.getElementById('parent-reports');
+    reports.innerHTML = state.children.length === 0 ? '<p style="color:#999;">(no hay niños)</p>' : '';
+    state.children.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'parent-item';
+      div.style.flexDirection = 'column';
+      div.style.alignItems = 'flex-start';
+      const reds = (c.redeemed || []).length;
+      const hist = (c.history || []).length;
+      const done = (c.weeksCompleted || []).length;
+      const pool = (c.masterPool || []).length;
+      div.innerHTML = `<strong>${c.avatar||'👤'} ${c.name}</strong>
+        <span style="color:var(--text-soft);">Puntos: ${c.totalPoints||0} | Insignias: ${(c.badges||[]).join(' ') || '—'}</span>
+        <span style="color:var(--text-soft);">Semanas completadas: ${done} | Master Pool: ${pool} palabras | Canjes: ${reds}</span>`;
+      reports.appendChild(div);
+    });
+
+    document.getElementById('new-pin-input').value = state.settings.parentPIN || '1234';
+  }
+
+  function openResetModal(childId) {
+    const child = state.children.find(c => c.id === childId);
+    if (!child) return;
+    UI.modal(`
+      <h2>🔄 Reset ${child.avatar} ${child.name}</h2>
+      <p style="margin-bottom:16px;">Marca lo que quieres resetear:</p>
+      <div class="checkbox-row"><input type="checkbox" id="reset-points" checked> <label for="reset-points">Puntos totales (poner a 0)</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="reset-progress" checked> <label for="reset-progress">Progreso de todas las semanas</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="reset-badges" checked> <label for="reset-badges">Insignias ganadas</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="reset-history" checked> <label for="reset-history">Historial de semanas</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="reset-pool" checked> <label for="reset-pool">Master Pool (palabras acumuladas)</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="reset-redemptions"> <label for="reset-redemptions">Canjes (recompensas pedidas)</label></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel">Cancelar</button>
+        <button class="btn-warning" id="modal-confirm">🔄 Resetear</button>
+      </div>
+    `);
+    document.getElementById('modal-cancel').addEventListener('click', () => UI.closeModal());
+    document.getElementById('modal-confirm').addEventListener('click', () => {
+      const c = state.children.find(x => x.id === childId);
+      if (!c) return;
+      if (document.getElementById('reset-points').checked) c.totalPoints = 0;
+      if (document.getElementById('reset-badges').checked) c.badges = [];
+      if (document.getElementById('reset-history').checked) c.history = [];
+      if (document.getElementById('reset-pool').checked) { c.masterPool = []; c.weeksCompleted = []; }
+      if (document.getElementById('reset-redemptions').checked) {
+        c.redeemed = [];
+        state.redemptions = state.redemptions.filter(r => r.childId !== childId);
+      }
+      if (document.getElementById('reset-progress').checked) {
+        Object.keys(state.progress).forEach(k => { if (k.startsWith(childId + '::')) delete state.progress[k]; });
+      }
+      saveState(); UI.closeModal(); render(); renderHome();
+      UI.toast(`🔄 ${c.name} reseteado`, 'success');
+    });
+  }
+
+  function openEditWeekModal(weekId) {
+    const week = state.weeks.find(w => w.id === weekId);
+    if (!week) return;
+    UI.modal(`
+      <h2>✏️ Editar semana</h2>
+      <label>Etiqueta</label>
+      <input type="text" id="edit-week-label" value="${week.label}">
+      <label>Palabras (una por línea)</label>
+      <textarea id="edit-week-words">${week.words.join('\n')}</textarea>
+      <div class="help-note">
+        💡 Escribe <strong>una palabra por fila</strong>.<br>
+        💡 Si una palabra admite dos formas, sepáralas con <code>/</code>: <code>yoghurt/yogurt</code>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel">Cancelar</button>
+        <button class="btn-primary" id="modal-confirm">💾 Guardar</button>
+      </div>
+    `);
+    document.getElementById('modal-cancel').addEventListener('click', () => UI.closeModal());
+    document.getElementById('modal-confirm').addEventListener('click', () => {
+      const label = document.getElementById('edit-week-label').value.trim() || week.label;
+      const raw = document.getElementById('edit-week-words').value;
+      const words = raw.split(/[\n;]+/).map(l => l.trim()).filter(Boolean);
+      const changed = JSON.stringify(words) !== JSON.stringify(week.words);
+      week.label = label;
+      week.words = words;
+      if (changed) {
+        Object.keys(state.progress).forEach(k => { if (k.endsWith('::' + weekId)) delete state.progress[k]; });
+        UI.toast('⚠️ Progreso de esa semana reseteado', 'error');
+      } else {
+        UI.toast('✅ Semana actualizada', 'success');
+      }
+      saveState(); UI.closeModal(); render();
+    });
+  }
+
+  function openAddWeekModal() {
+    UI.modal(`
+      <h2>➕ Nueva semana</h2>
+      <label>Etiqueta</label>
+      <input type="text" id="new-week-label" placeholder="Ej: Semana 1 / Week of Sep 25">
+      <label>Palabras (una por línea)</label>
+      <textarea id="new-week-words" placeholder="apple&#10;banana&#10;yoghurt/yogurt"></textarea>
+      <div class="help-note">
+        💡 Escribe <strong>una palabra por fila</strong>.<br>
+        💡 Si una palabra admite dos formas, sepáralas con <code>/</code>: <code>yoghurt/yogurt</code>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="new-week-active" checked>
+        <label for="new-week-active">Marcar como semana ACTUAL</label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel">Cancelar</button>
+        <button class="btn-primary" id="modal-confirm">💾 Guardar</button>
+      </div>
+    `);
+    document.getElementById('modal-cancel').addEventListener('click', () => UI.closeModal());
+    document.getElementById('modal-confirm').addEventListener('click', () => {
+      const label = document.getElementById('new-week-label').value.trim();
+      const raw = document.getElementById('new-week-words').value;
+      const words = raw.split(/[\n;]+/).map(l => l.trim()).filter(Boolean);
+      if (!label) { UI.toast('Pon una etiqueta', 'error'); return; }
+      if (words.length === 0) { UI.toast('Añade al menos una palabra', 'error'); return; }
+      const weekId = 'w_' + uid();
+      state.weeks.push({
+        id: weekId, label, words,
+        createdAt: new Date().toISOString()
+      });
+      if (document.getElementById('new-week-active').checked) {
+        state.activeWeekId = weekId;
+      }
+      if (!state.activeWeekId) state.activeWeekId = weekId;
+      saveState(); UI.closeModal(); render();
+      UI.toast('✅ Semana añadida', 'success');
+    });
+  }
+
+  function saveThreshold() {
+    state.settings.threshold = parseInt(document.getElementById('threshold-input').value) || 80;
+    saveState(); UI.toast('✅ Umbral guardado', 'success');
+  }
+  function savePoints() {
+    state.settings.points = {
+      perWord: parseInt(document.getElementById('pts-word').value) || 1,
+      perfect: parseInt(document.getElementById('pts-perfect').value) || 10,
+      good: parseInt(document.getElementById('pts-good').value) || 5,
+      low: parseInt(document.getElementById('pts-low').value) || 0,
+      double: document.getElementById('pts-double').checked
+    };
+    saveState(); UI.toast('✅ Puntos guardados', 'success');
+  }
+  function addChild() {
+    const name = document.getElementById('new-child-name').value.trim();
+    if (!name) { UI.toast('Escribe un nombre', 'error'); return; }
+    if (!selectedAvatar) { UI.toast('Elige un avatar', 'error'); return; }
+    state.children.push({ id: uid(), name, avatar: selectedAvatar, totalPoints: 0, badges: [], history: [], redeemed: [], masterPool: [], weeksCompleted: [] });
+    saveState();
+    document.getElementById('new-child-name').value = '';
+    selectedAvatar = null;
+    render(); renderHome(); UI.toast('✅ Niño añadido', 'success');
+  }
+  function addReward() {
+    const name = document.getElementById('new-reward-name').value.trim();
+    const cost = parseInt(document.getElementById('new-reward-cost').value);
+    if (!name || !cost) { UI.toast('Completa nombre y puntos', 'error'); return; }
+    state.rewards.push({ name, cost });
+    saveState();
+    document.getElementById('new-reward-name').value = '';
+    document.getElementById('new-reward-cost').value = '';
+    render();
+  }
+  function savePin() {
+    const pin = document.getElementById('new-pin-input').value.trim();
+    if (pin.length !== 4 || !/^\d+$/.test(pin)) { UI.toast('PIN debe ser 4 dígitos', 'error'); return; }
+    state.settings.parentPIN = pin; saveState(); UI.toast('✅ PIN guardado', 'success');
+  }
+  function resetProgressAll() {
+    if (!confirm('¿Resetear el progreso, puntos, insignias e historial de TODOS los niños?')) return;
+    state.children.forEach(c => {
+      c.totalPoints = 0; c.badges = []; c.history = []; c.redeemed = [];
+      c.masterPool = []; c.weeksCompleted = [];
+    });
+    state.redemptions = [];
+    state.progress = {};
+    saveState(); render(); renderHome();
+    UI.toast('🔄 Progreso reseteado', 'success');
+  }
+  function resetAll() {
+    if (!confirm('¿SEGURO? Se borrará TODO.')) return;
+    if (!confirm('Última oportunidad. ¿Confirmas?')) return;
+    localStorage.removeItem(STORAGE_KEY); location.reload();
+  }
+
+  return { open, submitPin, render, saveThreshold, savePoints, addChild, addReward, savePin, resetProgressAll, resetAll, renderAvatarPicker, openAddWeekModal };
+})();
+
+/* ============================================================
+   🏠 HOME
+   ============================================================ */
+function renderHome() {
+  const list = document.getElementById('children-list');
+  const modeGrid = document.getElementById('mode-grid');
+  list.innerHTML = '';
+
+  if (state.children.length === 0) {
+    list.innerHTML = '<p style="text-align:center;color:#999;grid-column:1/-1;padding:20px;">No children yet.<br>Ask your parents to add you in the Parent Panel 👨‍👩‍👧</p>';
+    modeGrid.classList.add('hidden');
+    return;
+  }
+
+  state.children.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'child-card' + (c.id === selectedChildId ? ' selected' : '');
+    div.innerHTML = `
+      <span class="child-avatar">${c.avatar || '👤'}</span>
+      <div class="child-name">${c.name}</div>
+      <div class="child-points">⭐ ${c.totalPoints || 0}</div>
+      <div class="child-badges">${(c.badges || []).join('')}</div>`;
+    div.addEventListener('click', () => {
+      Audio.click();
+      selectedChildId = c.id;
+      renderHome();
+    });
+    list.appendChild(div);
+  });
+
+  if (selectedChildId) {
+    modeGrid.classList.remove('hidden');
+    // Actualizamos contador de Master
+    const c = state.children.find(x => x.id === selectedChildId);
+    const done = (c?.weeksCompleted || []).length;
+    document.getElementById('master-progress-count').textContent = `${Math.min(done,2)}/2`;
+    const masterTile = document.getElementById('tile-master');
+    if (done >= 2) masterTile.classList.remove('locked');
+    else masterTile.classList.add('locked');
+  } else {
+    modeGrid.classList.add('hidden');
+  }
+}
+
+/* ============================================================
+   🎯 EVENTOS
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  renderHome();
+  ParentPanel.renderAvatarPicker();
+
+  const starsBtn = document.createElement('button');
+  starsBtn.className = 'stars-btn';
+  starsBtn.textContent = '⭐ My Stars';
+  starsBtn.addEventListener('click', () => { Audio.click(); Stars.open(); });
+  document.body.appendChild(starsBtn);
+
+  // Home tiles
+  document.getElementById('tile-week').addEventListener('click', () => {
+    Audio.click();
+    if (!selectedChildId) return;
+    const activeWeek = getActiveWeek();
+    if (!activeWeek) { UI.toast('No active week yet', 'error'); return; }
+    Game.start(selectedChildId, activeWeek.id);
+  });
+  document.getElementById('tile-choose').addEventListener('click', () => {
+    Audio.click();
+    if (selectedChildId) ChooseWeek.open(selectedChildId);
+  });
+  document.getElementById('tile-master').addEventListener('click', () => {
+    Audio.click();
+    Master.menu();
+  });
+  document.getElementById('tile-rewards').addEventListener('click', () => {
+    Audio.click();
+    if (selectedChildId) Wallet.open(selectedChildId);
+  });
+
+  // Game read-words
+  document.getElementById('btn-start-game').addEventListener('click', () => {
+    Audio.click();
+    const session = Game.getSession();
+    if (session) { session.phase = 2; session.index = 0; session.correctCount = 0; session.wrongList = []; session.phasePoints = 0; session.order = []; Game.startPhase(); }
+  });
+
+  document.getElementById('btn-play-audio').addEventListener('click', () => Game.playAudio());
+  document.getElementById('btn-check').addEventListener('click', () => Game.check());
+  document.getElementById('answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') Game.check(); });
+  document.getElementById('btn-game-back').addEventListener('click', () => { Speech.stop(); UI.back(); });
+  document.getElementById('btn-next-word').addEventListener('click', () => Game.nextWord());
+  document.getElementById('btn-hear-again').addEventListener('click', () => {
+    const w = document.getElementById('feedback-correction').dataset.word;
+    if (w) Speech.say(w);
+  });
+  document.getElementById('btn-retry-phase').addEventListener('click', () => Game.retryPhase());
+  document.getElementById('btn-next-phase').addEventListener('click', () => Game.nextPhase());
+  document.getElementById('btn-back-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
+
+  // Master menu
+  document.querySelectorAll('[data-master]').forEach(b => {
+    b.addEventListener('click', () => Master.startMode(b.dataset.master));
+  });
+
+  // Time Attack
+  document.getElementById('btn-time-check').addEventListener('click', () => TimeAttack.check());
+  document.getElementById('time-answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') TimeAttack.check(); });
+  document.getElementById('btn-time-audio').addEventListener('click', () => TimeAttack.playAudio());
+  document.getElementById('btn-time-back').addEventListener('click', () => { location.reload(); });
+  document.getElementById('btn-time-again').addEventListener('click', () => TimeAttack.playAgain());
+  document.getElementById('btn-time-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
+
+  // Duel
+  document.getElementById('btn-duel-start').addEventListener('click', () => Duel.start());
+  document.getElementById('btn-duel-check').addEventListener('click', () => Duel.check());
+  document.getElementById('duel-answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') Duel.check(); });
+  document.getElementById('btn-duel-audio').addEventListener('click', () => Duel.playAudio());
+  document.getElementById('btn-duel-back').addEventListener('click', () => { location.reload(); });
+  document.getElementById('btn-duel-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
+
+  // Parent
+  document.getElementById('btn-open-parent').addEventListener('click', () => ParentPanel.open());
+  document.getElementById('btn-pin-submit').addEventListener('click', () => ParentPanel.submitPin());
+  document.getElementById('pin-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') ParentPanel.submitPin(); });
+  document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => UI.back()));
+  document.getElementById('btn-exit-parent').addEventListener('click', () => { renderHome(); UI.show('screen-home'); });
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelector(`[data-tab-content="${t.dataset.tab}"]`).classList.add('active');
+  }));
+  document.getElementById('btn-add-child-parent').addEventListener('click', () => ParentPanel.addChild());
+  document.getElementById('btn-add-week').addEventListener('click', () => ParentPanel.openAddWeekModal());
+  document.getElementById('btn-save-threshold').addEventListener('click', () => ParentPanel.saveThreshold());
+  document.getElementById('btn-save-points').addEventListener('click', () => ParentPanel.savePoints());
+  document.getElementById('btn-add-reward').addEventListener('click', () => ParentPanel.addReward());
+  document.getElementById('btn-save-pin').addEventListener('click', () => ParentPanel.savePin());
+  document.getElementById('btn-reset-progress-all').addEventListener('click', () => ParentPanel.resetProgressAll());
+  document.getElementById('btn-reset-all').addEventListener('click', () => ParentPanel.resetAll());
+
+  // Backup
+  document.getElementById('btn-export-file').addEventListener('click', () => Backup.downloadFile());
+  document.getElementById('btn-export-clipboard').addEventListener('click', () => Backup.copyToClipboard());
+  document.getElementById('input-import-file').addEventListener('change', (e) => {
+    if (e.target.files.length > 0) Backup.importFromFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  document.getElementById('btn-import-clipboard').addEventListener('click', () => Backup.importFromTextarea());
+
+  // Modal
+  document.getElementById('modal-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-overlay') UI.closeModal();
+  });
+});
+</script>
+</body>
+</html>
