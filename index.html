@@ -572,6 +572,67 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   box-shadow: 0 6px 0 #fde68a;
 }
 
+
+/* ============================================================
+   ⏸️ MODAL DE PAUSA
+   ============================================================ */
+.pause-modal-content {
+  text-align: center;
+}
+.pause-modal-content h2 {
+  color: var(--primary);
+  font-size: 1.8rem;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+.pause-modal-info {
+  background: #f5f3ff;
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin: 16px 0;
+  font-size: 1.1rem;
+  color: var(--text);
+  font-weight: 500;
+}
+.pause-modal-info strong {
+  color: var(--primary);
+  font-size: 1.2rem;
+}
+.pause-modal-note {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+}
+.pause-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pause-modal-actions button {
+  padding: 16px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+}
+@media (max-width: 500px) {
+  .pause-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Badge de continuación en el tile */
+.mode-tile .continue-badge {
+  display: inline-block;
+  background: var(--success);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
 </style>
 </head>
 <body>
@@ -801,7 +862,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
 <!-- 🎮 GAME -->
 <section id="screen-game" class="screen">
   <header class="top-bar">
-    <button class="btn-back" id="btn-game-back">← Back</button>
+    <button class="btn-back" id="btn-game-back">⏸️ Pause</button>
     <h2 id="game-phase-title">Phase 2: Copy</h2>
     <span id="game-progress-text">1 / 12</span>
   </header>
@@ -1923,7 +1984,7 @@ const Game = (() => {
     } return arr;
   }
 
-  return { start, startPhase, playAudio, check, nextWord, nextPhase, retryPhase, getSession, renderReadWords };
+  return { start, startPhase, playAudio, check, nextWord, nextPhase, retryPhase, getSession, renderReadWords, saveProgress };
 })();
 
 /* ============================================================
@@ -2899,6 +2960,23 @@ function renderHome() {
     const masterTile = document.getElementById('tile-master');
     if (done >= 2) masterTile.classList.remove('locked');
     else masterTile.classList.add('locked');
+
+    // 🔄 Badge "Continue" si hay partida a medias en la semana activa
+    const activeWeek = getActiveWeek();
+    const tileWeek = document.getElementById('tile-week');
+    // Quitar badge previo
+    const oldBadge = tileWeek.querySelector('.continue-badge');
+    if (oldBadge) oldBadge.remove();
+    if (activeWeek) {
+      const key = selectedChildId + '::' + activeWeek.id;
+      const prog = state.progress[key];
+      if (prog && !prog.completed && (prog.phase > 1 || prog.index > 0)) {
+        const badge = document.createElement('div');
+        badge.className = 'continue-badge';
+        badge.textContent = '▶ Continue';
+        tileWeek.appendChild(badge);
+      }
+    }
   } else {
     modeGrid.classList.add('hidden');
   }
@@ -2952,7 +3030,48 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnListenNormal) btnListenNormal.addEventListener('click', () => Game.playAudio(1.0));
   if (btnListenSlow) btnListenSlow.addEventListener('click', () => Game.playAudio(0.3));
   document.getElementById('answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') Game.check(); });
-  document.getElementById('btn-game-back').addEventListener('click', () => { Speech.stop(); UI.back(); });
+  document.getElementById('btn-game-back').addEventListener('click', () => {
+    Speech.stop();
+    const session = Game.getSession();
+    if (!session) { UI.back(); return; }
+    const total = session.order ? session.order.length : 0;
+    const current = (session.index || 0) + 1;
+    const phaseNames = { 2: 'Phase 2: Copy', 3: 'Phase 3: Listen & Copy', 4: 'Phase 4: Listen Only' };
+    const phaseName = phaseNames[session.phase] || 'Phase';
+    UI.modal(`
+      <div class="pause-modal-content">
+        <h2>⏸️ Pause</h2>
+        <div class="pause-modal-info">
+          You're in <strong>${phaseName}</strong><br>
+          Word <strong>${current}</strong> of <strong>${total}</strong>
+        </div>
+        <p class="pause-modal-note">Progress will be saved automatically.</p>
+        <div class="pause-modal-actions">
+          <button class="btn-primary" id="modal-continue">▶️ Continue</button>
+          <button class="btn-success" id="modal-save-exit">🏠 Save & Exit</button>
+        </div>
+      </div>
+    `);
+    document.getElementById('modal-continue').addEventListener('click', () => {
+      Audio.click();
+      UI.closeModal();
+      setTimeout(() => {
+        const input = document.getElementById('answer-input');
+        if (input) input.focus();
+      }, 100);
+    });
+    document.getElementById('modal-save-exit').addEventListener('click', () => {
+      Audio.click();
+      try { Game.saveProgress && Game.saveProgress(); } catch(e) { console.warn('saveProgress no expuesto', e); }
+      UI.closeModal();
+      UI.toast('💾 Progress saved!', 'success');
+      setTimeout(() => {
+        selectedChildId = null;
+        renderHome();
+        UI.show('screen-home');
+      }, 300);
+    });
+  });
   document.getElementById('btn-next-word').addEventListener('click', () => Game.nextWord());
   document.getElementById('btn-hear-again').addEventListener('click', () => {
     const w = document.getElementById('feedback-correction').dataset.word;
