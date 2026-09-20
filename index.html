@@ -823,6 +823,111 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   font-size: 1.4rem;
 }
 
+
+/* ============================================================
+   💰 MODAL DE PUNTOS
+   ============================================================ */
+.points-modal-content {
+  text-align: center;
+}
+.points-modal-content h2 {
+  color: var(--primary);
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+}
+.points-modal-content .points-week {
+  color: var(--text-soft);
+  font-size: 1rem;
+  margin-bottom: 20px;
+}
+.points-modal-content .points-section {
+  background: #f5f3ff;
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+.points-modal-content .points-section-title {
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.points-modal-content .points-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.points-modal-content .points-row .label {
+  font-weight: 500;
+}
+.points-modal-content .points-row .value {
+  color: var(--primary);
+  font-weight: 700;
+}
+.points-modal-content .points-available {
+  background: #fef3c7;
+  border-left: 5px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin: 16px 0;
+  text-align: left;
+}
+.points-modal-content .points-available .available-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #92400e;
+}
+.points-modal-content .points-available .available-row.full {
+  color: var(--success-dark);
+}
+.points-modal-content .points-week-total {
+  background: #d1fae5;
+  border-radius: var(--radius-sm);
+  padding: 14px 20px;
+  margin: 16px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--success-dark);
+}
+.points-modal-content .points-week-total small {
+  display: block;
+  font-weight: 500;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+.points-modal-content .points-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.points-modal-content .points-actions button {
+  padding: 14px 24px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  min-width: 130px;
+}
+@media (max-width: 500px) {
+  .points-modal-content .points-actions {
+    flex-direction: column-reverse;
+  }
+  .points-modal-content .points-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1161,12 +1266,30 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
 
 <!-- ⚔️ DUEL TURN (pantalla intermedia) -->
 <section id="screen-duel-turn" class="screen">
-  <div class="celebrate-box">
+  <div class="celebrate-box" style="max-width:600px; margin:0 auto;">
     <div class="celebrate-icon" style="font-size:5rem;">⚔️</div>
     <h2 id="duel-turn-title" style="color:var(--primary); font-size:1.8rem; margin:16px 0;">⚔️ Turno de Jugador</h2>
     <p id="duel-turn-subtitle" style="color:var(--text-soft); font-size:1.2rem; margin:8px 0;">Jugador 1 de 2</p>
+    
+    <div id="duel-turn-points" style="background:#f5f3ff; border-radius:16px; padding:16px 20px; margin:20px 0; text-align:left;">
+      <div style="font-weight:700; color:var(--primary); font-size:0.95rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">💰 Tu progreso hoy</div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:600; color:var(--text);">
+        <span>📚 Semana:</span>
+        <span id="duel-turn-week-pts" style="color:var(--primary); font-weight:700;">0 / 50 pts</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:600; color:var(--text);">
+        <span>🏆 Master:</span>
+        <span id="duel-turn-master-pts" style="color:var(--primary); font-weight:700;">0 / 20 pts</span>
+      </div>
+    </div>
+    
+    <div id="duel-turn-available" style="background:#fef3c7; border-left:5px solid var(--warning); border-radius:12px; padding:14px 20px; margin:16px 0; text-align:left;">
+      <div style="font-weight:700; color:#92400e; margin-bottom:8px;">🎁 Puedes ganar en Master:</div>
+      <div id="duel-turn-master-available" style="color:#92400e; font-weight:700; font-size:1.2rem;">+20 pts</div>
+    </div>
+    
     <p id="duel-turn-info" style="color:var(--text-soft); font-size:1rem; margin:16px 0;">12 palabras. ¡A por todas!</p>
-    <button class="btn-success big" id="btn-duel-turn-start" style="margin-top:24px;">▶ EMPEZAR TURNO</button>
+    <button class="btn-success big" id="btn-duel-turn-start" style="margin-top:16px;">▶ EMPEZAR TURNO</button>
   </div>
 </section>
 
@@ -1470,7 +1593,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
    💾 STORAGE
    ============================================================ */
 const STORAGE_KEY = 'spellQuest_v4';
-const APP_VERSION = 4;
+const APP_VERSION = 5;
 
 const DEFAULT_STATE = {
   children: [],
@@ -1744,6 +1867,128 @@ function checkCurrentWeekStatus(child) {
     weekId: getWeekId(prog.completedAt || new Date()),
     activeWeekId: activeWeek.id
   };
+}
+
+
+
+// 💰 Mostrar modal de puntos antes de empezar un modo
+// Parámetros:
+//   - modeTitle: título del modo (ej: "📅 This Week")
+//   - modeSubtitle: subtítulo (ej: "Semana 18 sep → 24 sep")
+//   - onStart: función a ejecutar al pulsar EMPEZAR
+//   - isPractice: si es modo práctica (sin puntos)
+function showPointsModal(modeTitle, modeSubtitle, onStart, isPractice) {
+  const child = state.children.find(c => c.id === selectedChildId);
+  if (!child) return;
+  
+  // Reset cubo diario si es necesario
+  DailyPoints.resetDailyIfNeeded(child);
+  
+  const weekPts = child.dailyPoints?.week || 0;
+  const masterPts = child.dailyPoints?.master || 0;
+  const weekRemaining = Math.max(0, 50 - weekPts);
+  const masterRemaining = Math.max(0, 20 - masterPts);
+  
+  // Total semanal
+  const currentWeekId = getWeekId(new Date());
+  const weeklyTotal = getWeekPoints(child, currentWeekId);
+  
+  // Días hasta el cierre
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=dom, 1=lun, ..., 4=jue
+  // Días restantes hasta el jueves 23:59
+  let daysLeft;
+  if (dayOfWeek === 4) daysLeft = 0; // jueves
+  else if (dayOfWeek === 5) daysLeft = 6; // viernes (nuevo ciclo)
+  else if (dayOfWeek === 6) daysLeft = 5; // sábado
+  else if (dayOfWeek === 0) daysLeft = 4; // domingo
+  else daysLeft = 4 - dayOfWeek; // lun-jue
+  const closeText = daysLeft === 0 ? 'La semana cierra hoy' : `Cierra en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}`;
+  
+  // Construir HTML
+  let html = '<div class="points-modal-content">';
+  html += `<h2>${modeTitle}</h2>`;
+  html += `<p class="points-week">${modeSubtitle || ''}</p>`;
+  
+  if (isPractice) {
+    html += `
+      <div style="background:#fef3c7; padding:20px; border-radius:16px; margin:16px 0;">
+        <div style="font-size:2.5rem; margin-bottom:8px;">🎯</div>
+        <div style="font-weight:700; color:#92400e; font-size:1.1rem;">Practice Mode</div>
+        <div style="color:#92400e; margin-top:8px;">No ganarás puntos esta vez</div>
+      </div>
+    `;
+  }
+  
+  // Progreso de hoy
+  html += `
+    <div class="points-section">
+      <div class="points-section-title">💰 Tu progreso hoy</div>
+      <div class="points-row">
+        <span class="label">📚 Semana:</span>
+        <span class="value">${weekPts} / 50 pts</span>
+      </div>
+      <div class="points-row">
+        <span class="label">🏆 Master:</span>
+        <span class="value">${masterPts} / 20 pts</span>
+      </div>
+    </div>
+  `;
+  
+  // Puntos disponibles
+  if (!isPractice) {
+    const weekFull = weekRemaining === 0;
+    const masterFull = masterRemaining === 0;
+    html += `
+      <div class="points-available">
+        <div class="points-section-title" style="color:#92400e; margin-bottom:8px;">🎁 Puedes ganar aún hoy</div>
+        <div class="available-row ${weekFull ? 'full' : ''}">
+          <span>📚 Semana:</span>
+          <span>${weekFull ? '✅ ¡Completo!' : '+' + weekRemaining + ' pts'}</span>
+        </div>
+        <div class="available-row ${masterFull ? 'full' : ''}">
+          <span>🏆 Master:</span>
+          <span>${masterFull ? '✅ ¡Completo!' : '+' + masterRemaining + ' pts'}</span>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Total semanal
+  html += `
+    <div class="points-week-total">
+      📅 Esta semana llevas: ${weeklyTotal} pts
+      <small>${closeText}</small>
+    </div>
+  `;
+  
+  // Botones
+  html += `
+    <div class="points-actions">
+      <button class="btn-secondary" id="modal-points-cancel">Cancelar</button>
+      <button class="btn-success" id="modal-points-start">▶ EMPEZAR</button>
+    </div>
+  `;
+  html += '</div>';
+  
+  UI.modal(html);
+  
+  document.getElementById('modal-points-cancel').addEventListener('click', () => UI.closeModal());
+  document.getElementById('modal-points-start').addEventListener('click', () => {
+    Audio.click();
+    UI.closeModal();
+    if (typeof onStart === 'function') onStart();
+  });
+}
+
+// 📚 Comprobar si una semana ya está completada por un niño (tiene medalla)
+
+// 📚 Modo práctica: se activa cuando se juega una semana ya completada
+let practiceMode = false;
+
+function isWeekCompleted(child, weekId) {
+  if (!child || !child.weeklyMedals || !weekId) return false;
+  return child.weeklyMedals.some(m => m.weekId === weekId);
 }
 
 function getTotalWeeks(child) {
@@ -2541,7 +2786,14 @@ const Game = (() => {
     else bonus = pts.low || 0;
 
     let phaseTotal = session.phasePoints;
-    if (passed) { phaseTotal += bonus; session.sessionPoints += phaseTotal; }
+    if (passed) { 
+      phaseTotal += bonus; 
+      if (!practiceMode) {
+        session.sessionPoints += phaseTotal; 
+      } else {
+        session.practicePoints = (session.practicePoints || 0) + phaseTotal;
+      }
+    }
 
     const phaseNames = { 2: 'Phase 2: Copy', 3: 'Phase 3: Listen & Copy', 4: 'Phase 4: Listen Only' };
     document.getElementById('summary-title').textContent = `${phaseNames[session.phase]} Complete! 🏁`;
@@ -2591,8 +2843,8 @@ const Game = (() => {
         console.log('🏅 Medalla otorgada:', medalResult);
       }
       
-      if (child) {
-        // Aplicar tope diario del cubo SEMANA (100 pts)
+      if (child && !practiceMode) {
+        // Aplicar tope diario del cubo SEMANA (50 pts)
         const result = DailyPoints.add(child, session.sessionPoints, 'week');
         session.sessionPointsActual = result.actual;
         session.sessionPointsCapped = result.capped;
@@ -2751,13 +3003,19 @@ const ChooseWeek = (() => {
       list.innerHTML = '<p style="text-align:center;color:#999;">No weeks saved yet.</p>';
       return;
     }
-    state.weeks.forEach(w => {
+    const child = state.children.find(c => c.id === childId);
+    state.weeks.filter(w => !w.isVirtual).forEach(w => {
       const key = childId + '::' + w.id;
       const prog = state.progress[key];
       const isActive = w.id === state.activeWeekId;
+      const weekId = getWeekId(w.createdAt);
+      const isCompleted = isWeekCompleted(child, weekId);
+      
       let status = '⚪ New';
-      if (prog && prog.completed) status = '🟢 Done';
+      if (isCompleted) status = '🟢 Completed (practice)';
+      else if (prog && prog.completed) status = '🟢 Done';
       else if (prog) status = '🟡 In progress';
+      
       const div = document.createElement('div');
       div.className = 'week-card' + (isActive ? ' active' : '');
       div.innerHTML = `
@@ -2766,14 +3024,64 @@ const ChooseWeek = (() => {
           <div class="week-meta">${w.words.length} words · ${status}</div>
         </div>
         <div class="week-actions">
-          <button class="activate-btn" data-play="${w.id}">▶ PLAY</button>
+          <button class="${isCompleted ? 'btn-secondary' : 'activate-btn'}" data-play="${w.id}" data-practice="${isCompleted}">
+            ${isCompleted ? '🎯 Practice' : '▶ PLAY'}
+          </button>
         </div>`;
       list.appendChild(div);
     });
     list.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => {
       Audio.click();
-      Game.start(childId, b.dataset.play);
+      const weekId = b.dataset.play;
+      const isPractice = b.dataset.practice === 'true';
+      const child = state.children.find(c => c.id === childId);
+      
+      if (isPractice) {
+        // Mostrar modal de práctica
+        openPracticeModal(childId, weekId);
+      } else {
+        // Jugar normal
+        practiceMode = false;
+        Game.start(childId, weekId);
+      }
     }));
+  }
+  
+  function openPracticeModal(childId, weekId) {
+    const week = state.weeks.find(w => w.id === weekId);
+    const child = state.children.find(c => c.id === childId);
+    if (!week || !child) return;
+    
+    const weekIdISO = getWeekId(week.createdAt);
+    const medal = (child.weeklyMedals || []).find(m => m.weekId === weekIdISO);
+    const medalEmoji = medal ? { bronze: '🥉', silver: '🥈', gold: '🥇' }[medal.medal] : '🏅';
+    
+    UI.modal(`
+      <div class="adjust-modal-content" style="text-align:center;">
+        <h2>🎯 Practice Mode</h2>
+        <p style="font-size:1.2rem; margin:16px 0;">Ya completaste esta semana</p>
+        <div style="background:#f0fdf4; padding:16px; border-radius:16px; margin:16px 0;">
+          <div style="font-size:2.5rem;">${medalEmoji}</div>
+          <div style="font-weight:700; color:var(--success-dark);">${week.label}</div>
+        </div>
+        <p style="color:var(--text-soft); margin-bottom:24px;">
+          Puedes jugarla para practicar,<br>
+          pero <strong>NO ganarás puntos</strong>.
+        </p>
+        <div class="adjust-modal-actions" style="justify-content:center;">
+          <button class="btn-secondary" id="modal-cancel">Cancelar</button>
+          <button class="btn-primary" id="modal-practice-start">🎯 PRACTICAR</button>
+        </div>
+      </div>
+    `);
+    
+    document.getElementById('modal-cancel').addEventListener('click', () => UI.closeModal());
+    document.getElementById('modal-practice-start').addEventListener('click', () => {
+      Audio.click();
+      UI.closeModal();
+      practiceMode = true;
+      Game.start(childId, weekId);
+    });
   }
   return { open };
 })();
@@ -2866,25 +3174,50 @@ const Master = (() => {
     UI.show('screen-master');
   }
   function startMode(mode) {
-    if (mode === 'random') return RandomReview.start(selectedChildId);
-    if (mode === 'time') {
+    if (mode === 'random') {
+      // 💰 Modal antes de Random Review
       const c = state.children.find(x => x.id === selectedChildId);
-      const pool = (c && c.masterPool) || [];
+      if (!c) return;
+      const pool = c.masterPool || [];
       if (pool.length < 12) {
         UI.toast('Necesitas al menos 12 palabras en tu colección 📚', 'error');
         return;
       }
-      // Comprobar tope Master
       DailyPoints.resetDailyIfNeeded(c);
-      if (DailyPoints.isCapped(c, 'master')) {
-        UI.toast('🌙 Has alcanzado el máximo Master de hoy. ¡Vuelve mañana!', 'error');
+      
+      showPointsModal(
+        '🎲 Random Review',
+        `${pool.length} palabras en tu colección`,
+        () => RandomReview.start(selectedChildId),
+        false
+      );
+      return;
+    }
+    
+    if (mode === 'time') {
+      const c = state.children.find(x => x.id === selectedChildId);
+      if (!c) return;
+      const pool = c.masterPool || [];
+      if (pool.length < 12) {
+        UI.toast('Necesitas al menos 12 palabras en tu colección 📚', 'error');
         return;
       }
-      // 12 palabras aleatorias
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, 12);
-      return TimeAttack.start(selectedChildId, selected);
+      DailyPoints.resetDailyIfNeeded(c);
+      
+      // 💰 Modal antes de Time Attack
+      showPointsModal(
+        '⏱️ Time Attack',
+        '12 palabras · contrarreloj',
+        () => {
+          const shuffled = [...pool].sort(() => Math.random() - 0.5);
+          const selected = shuffled.slice(0, 12);
+          TimeAttack.start(selectedChildId, selected);
+        },
+        false
+      );
+      return;
     }
+    
     if (mode === 'duel') {
       const c = state.children.find(x => x.id === selectedChildId);
       if (state.children.length < 2) {
@@ -3479,10 +3812,35 @@ const Duel = (() => {
     const turnNum = session.currentPlayerIndex + 1;
     const totalTurns = session.players.length;
     
-    // Modal / pantalla intermedia
+    // 🔧 Reset cubo diario del jugador por si acaso
+    DailyPoints.resetDailyIfNeeded(player);
+    
+    const weekPts = player.dailyPoints?.week || 0;
+    const masterPts = player.dailyPoints?.master || 0;
+    const masterRemaining = Math.max(0, 20 - masterPts);
+    
+    // Título y subtítulo
     document.getElementById('duel-turn-title').textContent = `⚔️ Turno de ${player.avatar} ${player.name}`;
     document.getElementById('duel-turn-subtitle').textContent = `Jugador ${turnNum} de ${totalTurns}`;
     document.getElementById('duel-turn-info').textContent = `${session.rounds} palabras. ¡A por todas!`;
+    
+    // Info de puntos
+    document.getElementById('duel-turn-week-pts').textContent = `${weekPts} / 50 pts`;
+    document.getElementById('duel-turn-master-pts').textContent = `${masterPts} / 20 pts`;
+    
+    const availableEl = document.getElementById('duel-turn-master-available');
+    const availableBox = document.getElementById('duel-turn-available');
+    if (masterRemaining === 0) {
+      availableEl.textContent = '✅ ¡Cubo Master lleno hoy!';
+      availableBox.style.background = '#d1fae5';
+      availableBox.style.borderLeftColor = 'var(--success-dark)';
+      availableEl.style.color = 'var(--success-dark)';
+    } else {
+      availableEl.textContent = `+${masterRemaining} pts`;
+      availableBox.style.background = '#fef3c7';
+      availableBox.style.borderLeftColor = 'var(--warning)';
+      availableEl.style.color = '#92400e';
+    }
     
     UI.show('screen-duel-turn');
   }
@@ -4470,6 +4828,8 @@ function showAdjustmentNotification(child, adj) {
 }
 
 function renderHome() {
+  // 🔧 Resetear practiceMode al volver al menú (cubre todos los casos)
+  practiceMode = false;
   const list = document.getElementById('children-list');
   const modeGrid = document.getElementById('mode-grid');
   list.innerHTML = '';
@@ -4595,7 +4955,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!selectedChildId) return;
     const activeWeek = getActiveWeek();
     if (!activeWeek) { UI.toast('No active week yet', 'error'); return; }
-    Game.start(selectedChildId, activeWeek.id);
+    
+    // 💰 Mostrar modal de puntos antes de empezar
+    const child = state.children.find(c => c.id === selectedChildId);
+    const weekId = getWeekId(new Date());
+    const weekLabel = getWeekLabel(weekId);
+    const isCompleted = isWeekCompleted(child, weekId);
+    
+    showPointsModal(
+      '📅 This Week',
+      weekLabel,
+      () => {
+        practiceMode = false;
+        Game.start(selectedChildId, activeWeek.id);
+      },
+      false  // No es práctica (aunque esté completa, This Week no va a practice)
+    );
   });
   document.getElementById('tile-choose').addEventListener('click', () => {
     Audio.click();
@@ -4605,6 +4980,8 @@ document.addEventListener('DOMContentLoaded', () => {
     Audio.click();
     Master.menu();
   });
+  
+  // El modal de Master se muestra en Master.startMode
   document.getElementById('tile-stars').addEventListener('click', () => {
     Audio.click();
     Stars.open();
