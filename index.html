@@ -2269,7 +2269,46 @@ const DailyPoints = (() => {
 
   // Suma puntos respetando el tope. Devuelve {actual, capped, remaining}
   function add(child, earned, bucket) {
+    if (!child) return { actual: 0, capped: false, remaining: 0 };
     resetDailyIfNeeded(child);
+    if (!child.dailyPoints) child.dailyPoints = { date: today(), week: 0, master: 0 };
+    
+    // 🎯 Sistema "mejor del día" para el cubo WEEK
+    if (bucket === 'week') {
+      const todayStr = today();
+      if (!child.dailyScores) child.dailyScores = {};
+      const todayScore = child.dailyScores[todayStr] || { best: 0, applied: 0 };
+      
+      // Solo aplicar la diferencia si earned > best del día
+      if (earned > todayScore.best) {
+        const diff = earned - todayScore.best;
+        todayScore.best = earned;
+        todayScore.applied = (todayScore.applied || 0) + diff;
+        child.dailyScores[todayStr] = todayScore;
+        
+        // Aplicar la diferencia al cubo (respetando tope)
+        const max = LIMITS[bucket];
+        const current = child.dailyPoints[bucket] || 0;
+        const remaining = Math.max(0, max - current);
+        const actual = Math.min(diff, remaining);
+        child.dailyPoints[bucket] = current + actual;
+        child.totalPoints = (child.totalPoints || 0) + actual;
+        
+        // Histórico diario
+        if (actual > 0) {
+          if (!child.dailyPointsHistory) child.dailyPointsHistory = {};
+          child.dailyPointsHistory[todayStr] = (child.dailyPointsHistory[todayStr] || 0) + actual;
+        }
+        
+        console.log('📊 Mejor del dia actualizado: ' + todayScore.best + ' (aplicado +' + actual + ')');
+        return { actual, capped: actual < diff, remaining: max - child.dailyPoints[bucket], bestOfDay: todayScore.best };
+      } else {
+        console.log('📊 No mejora el mejor del dia (' + todayScore.best + ' pts). No se aplica nada.');
+        return { actual: 0, capped: false, remaining: LIMITS[bucket] - child.dailyPoints[bucket], bestOfDay: todayScore.best };
+      }
+    }
+    
+    // Cubo Master: comportamiento normal (acumulativo)
     const max = LIMITS[bucket];
     const current = child.dailyPoints[bucket] || 0;
     const remaining = Math.max(0, max - current);
@@ -2277,7 +2316,6 @@ const DailyPoints = (() => {
     child.dailyPoints[bucket] = current + actual;
     child.totalPoints = (child.totalPoints || 0) + actual;
     
-    // 📅 Guardar en histórico diario (para el cálculo del campeón de la semana)
     if (actual > 0) {
       const todayStr = today();
       if (!child.dailyPointsHistory) child.dailyPointsHistory = {};
@@ -2746,13 +2784,14 @@ const Game = (() => {
     const title = document.getElementById('feedback-title');
     title.textContent = correct ? 'GREAT JOB!' : 'Almost!';
     title.style.color = correct ? 'var(--success)' : 'var(--warning)';
+    
+    // Sin puntos por palabra (los puntos son por fase)
     const points = document.getElementById('feedback-points');
-    if (correct) {
-      points.style.display = 'block';
-      points.textContent = doubled ? `+${earned} points (DOUBLE! 🌟)` : `+${earned} point${earned!==1?'s':''}`;
-    } else points.style.display = 'none';
+    points.style.display = 'none';
+    
     const streak = document.getElementById('feedback-streak');
     streak.textContent = (correct && session.correctCount >= 3) ? `🔥 Streak x${session.correctCount}!` : '';
+    
     const corr = document.getElementById('feedback-correction');
     if (correct) corr.classList.add('hidden');
     else {
@@ -2779,27 +2818,31 @@ const Game = (() => {
     const threshold = state.settings.threshold || 80;
     const passed = pct >= threshold;
 
-    let bonus = 0;
-    const pts = state.settings.points;
-    if (pct === 100) bonus = pts.perfect || 10;
-    else if (pct >= 70) bonus = pts.good || 5;
-    else bonus = pts.low || 0;
-
-    let phaseTotal = session.phasePoints;
-    if (passed) { 
-      phaseTotal += bonus; 
+    // 🎯 NUEVAS REGLAS v3.0: puntos fijos por fase (declarado fuera del if)
+    let phaseEarned = 0;
+    if (passed) {
+      if (pct === 100) phaseEarned = 15;      // Perfecta
+      else if (pct >= threshold) phaseEarned = 10;  // Supera umbral
+      else phaseEarned = 0;                    // No supera
+      
+      // Guardar puntuación de esta fase
+      if (!session.phaseScores) session.phaseScores = {};
+      session.phaseScores[session.phase] = { pct, earned: phaseEarned };
+      
       if (!practiceMode) {
-        session.sessionPoints += phaseTotal; 
+        session.sessionPoints += phaseEarned;
       } else {
-        session.practicePoints = (session.practicePoints || 0) + phaseTotal;
+        session.practicePoints = (session.practicePoints || 0) + phaseEarned;
       }
+      
+      console.log(`🎮 Fase ${session.phase}: ${pct}% → +${phaseEarned} pts`);
     }
 
     const phaseNames = { 2: 'Phase 2: Copy', 3: 'Phase 3: Listen & Copy', 4: 'Phase 4: Listen Only' };
     document.getElementById('summary-title').textContent = `${phaseNames[session.phase]} Complete! 🏁`;
     document.getElementById('summary-correct').textContent = `${correct} / ${total}`;
     document.getElementById('summary-accuracy').textContent = pct + '%';
-    document.getElementById('summary-points').textContent = passed ? `+${phaseTotal}` + (bonus > 0 ? ` (bonus +${bonus})` : '') : '0 (repeat this phase)';
+    document.getElementById('summary-points').textContent = passed ? `+${phaseEarned}` : '0 (repeat this phase)';
     document.getElementById('summary-time').textContent = `${Math.floor(seconds/60)}m ${seconds%60}s`;
     const status = document.getElementById('summary-status');
     status.textContent = passed ? '✅ GREAT!' : '💪 Try again!';
@@ -2831,6 +2874,14 @@ const Game = (() => {
 
     if (session.phase === 4) {
       const child = state.children.find(c => c.id === session.childId);
+      
+      // 🎯 EXTRA +5 si las 3 fases (2, 3, 4) fueron perfectas (100%)
+      const scores = session.phaseScores || {};
+      const allPerfect = scores[2]?.pct === 100 && scores[3]?.pct === 100 && scores[4]?.pct === 100;
+      if (allPerfect) {
+        session.sessionPoints += 5;
+        console.log('🌟 ¡BONUS +5 por 3 fases perfectas!');
+      }
       
       // 🏅 Otorgar medalla provisional (bronze o silver) ANTES de sumar puntos
       if (child) {
@@ -5090,6 +5141,70 @@ document.addEventListener('DOMContentLoaded', () => {
   // NEXT PHASE
   document.getElementById('btn-next-phase').addEventListener('click', () => {
     if (Game.getSession()) Game.nextPhase();
+  });
+  
+  // BACK HOME (WEEK COMPLETE)
+  document.getElementById('btn-back-home').addEventListener('click', () => {
+    Audio.click();
+    practiceMode = false;
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+  
+  // CHAMPION CLOSE
+  const champClose = document.getElementById('btn-champion-close');
+  if (champClose) champClose.addEventListener('click', () => {
+    Audio.click();
+    const child = state.children.find(x => x.id === selectedChildId);
+    if (child) {
+      const pending = Champion.getPendingGoldNotifications(child.id);
+      pending.forEach(n => Champion.markGoldNotificationSeen(child.id, n.weekId));
+    }
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+  
+  // ADJUSTMENT NOTIFICATION CLOSE
+  const adjClose = document.getElementById('btn-adj-notif-close');
+  if (adjClose) adjClose.addEventListener('click', () => {
+    const child = state.children.find(x => x.id === selectedChildId);
+    if (child && child.adjustments) {
+      child.adjustments.forEach(a => { if (a.notify && !a.seen) a.seen = true; });
+      saveState();
+    }
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+  
+  // TIME ATTACK HOME
+  const timeHome = document.getElementById('btn-time-home');
+  if (timeHome) timeHome.addEventListener('click', () => {
+    Audio.click();
+    practiceMode = false;
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+  
+  // DUEL HOME
+  const duelHome = document.getElementById('btn-duel-home');
+  if (duelHome) duelHome.addEventListener('click', () => {
+    Audio.click();
+    practiceMode = false;
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+  
+  // START GAME (Read words screen)
+  const startGame = document.getElementById('btn-start-game');
+  if (startGame) startGame.addEventListener('click', () => {
+    Audio.click();
+    const session = Game.getSession();
+    if (session) { session.phase = 2; session.index = 0; session.correctCount = 0; session.wrongList = []; session.phasePoints = 0; session.order = []; session.phaseScores = {}; Game.startPhase(); }
   });
 
   // 🔊 Listen buttons
