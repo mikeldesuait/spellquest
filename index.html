@@ -1146,6 +1146,18 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   </div>
 </section>
 
+<!-- 🥇 CAMPEÓN DE LA SEMANA -->
+<section id="screen-champion" class="screen">
+  <div class="celebrate-box">
+    <div class="celebrate-icon" style="font-size:8rem;">🥇</div>
+    <h2 style="color:var(--warning-dark); font-size:2.2rem; margin:16px 0;">¡ERES EL CAMPEÓN!</h2>
+    <p style="font-size:1.3rem; color:var(--text-soft); margin-bottom:8px;" id="champion-week">Semana 2026-W38</p>
+    <p style="font-size:2rem; color:var(--success); font-weight:700; margin:20px 0;" id="champion-points">85 puntos</p>
+    <p style="font-size:1.4rem; margin:24px 0;">Has ganado una medalla de oro 🥇</p>
+    <button class="btn-success big" id="btn-champion-close" style="margin-top:24px;">¡GENIAL!</button>
+  </div>
+</section>
+
 <!-- 🔒 PIN -->
 <section id="screen-pin" class="screen">
   <div class="pin-box">
@@ -1455,6 +1467,8 @@ const DEFAULT_STATE = {
   rewards: [],
   redemptions: [],
   progress: {},
+  settledWeeks: [],
+  pendingGoldNotifications: [],
   settings: {
     threshold: 80,
     parentPIN: '1234',
@@ -2057,7 +2071,8 @@ const Medals = (() => {
         weekId: weekId,
         medal: medal,
         perfect: !!perfect,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
+        settled: false
       });
       child.badges[medal] = (child.badges[medal] || 0) + 1;
       recalcBadges(child);
@@ -2094,6 +2109,141 @@ const Medals = (() => {
   }
   
   return { getWeekMedal, awardMedal, isWeekPerfect, medalRank };
+})();
+
+
+/* ============================================================
+   🥇 CHAMPION — Campeón de la semana
+   ============================================================ */
+const Champion = (() => {
+  
+  // Comprobar si una semana ya ha terminado (lunes siguiente o después)
+  function isWeekClosed(weekId) {
+    const currentWeek = getWeekId(new Date());
+    if (!currentWeek || !weekId) return false;
+    // Comparamos strings "2026-W38" < "2026-W39" lexicográficamente funciona
+    return weekId < currentWeek;
+  }
+  
+  // Obtener todos los weekIds de semanas cerradas con medallas sin procesar
+  function getPendingWeeks() {
+    const pending = new Set();
+    state.children.forEach(c => {
+      (c.weeklyMedals || []).forEach(m => {
+        if (!m.settled && isWeekClosed(m.weekId)) {
+          pending.add(m.weekId);
+        }
+      });
+    });
+    return [...pending];
+  }
+  
+  // Calcular el campeón de una semana y actualizar las medallas
+  function settleWeek(weekId) {
+    if (!weekId) return null;
+    
+    // Buscar candidatos: niños que tienen medalla esa semana
+    const candidates = state.children.filter(c => {
+      return (c.weeklyMedals || []).some(m => m.weekId === weekId);
+    });
+    
+    if (candidates.length === 0) return null;
+    
+    // Puntos de cada uno esa semana
+    const scored = candidates.map(c => ({
+      child: c,
+      points: getWeekPoints(c, weekId)
+    }));
+    
+    const maxPoints = Math.max(...scored.map(s => s.points));
+    if (maxPoints === 0) {
+      // Nadie jugó realmente. Marcamos como settled pero sin oro
+      scored.forEach(s => {
+        (s.child.weeklyMedals || []).forEach(m => {
+          if (m.weekId === weekId) m.settled = true;
+        });
+      });
+      saveState();
+      return null;
+    }
+    
+    const winners = scored.filter(s => s.points === maxPoints);
+    
+    // Subir a oro a cada ganador
+    winners.forEach(w => {
+      const medal = (w.child.weeklyMedals || []).find(m => m.weekId === weekId);
+      if (medal && medal.medal !== 'gold') {
+        // Subir de medalla
+        const previousMedal = medal.medal;
+        if (w.child.badges && w.child.badges[previousMedal] > 0) {
+          w.child.badges[previousMedal]--;
+        }
+        if (!w.child.badges) w.child.badges = { bronze: 0, silver: 0, gold: 0 };
+        w.child.badges.gold = (w.child.badges.gold || 0) + 1;
+        medal.medal = 'gold';
+        medal.upgradedFrom = previousMedal;
+        medal.upgradedAt = new Date().toISOString();
+      }
+      // Marcar como settled
+      medal.settled = true;
+    });
+    
+    // Marcar el resto como settled
+    scored.forEach(s => {
+      (s.child.weeklyMedals || []).forEach(m => {
+        if (m.weekId === weekId) m.settled = true;
+      });
+    });
+    
+    // Añadir a la lista de notificaciones pendientes
+    if (!state.pendingGoldNotifications) state.pendingGoldNotifications = [];
+    winners.forEach(w => {
+      state.pendingGoldNotifications.push({
+        childId: w.child.id,
+        weekId: weekId,
+        points: maxPoints
+      });
+    });
+    
+    saveState();
+    return { winners: winners.map(w => w.child.id), points: maxPoints };
+  }
+  
+  // Al abrir la app: procesar todas las semanas pendientes
+  function settlePendingWeeks() {
+    const pending = getPendingWeeks();
+    if (pending.length === 0) return [];
+    const results = [];
+    pending.forEach(weekId => {
+      const result = settleWeek(weekId);
+      if (result) results.push({ weekId, ...result });
+    });
+    return results;
+  }
+  
+  // Comprobar si un niño tiene notificaciones pendientes
+  function getPendingGoldNotifications(childId) {
+    if (!state.pendingGoldNotifications) return [];
+    return state.pendingGoldNotifications.filter(n => n.childId === childId);
+  }
+  
+  // Marcar notificación como vista
+  function markGoldNotificationSeen(childId, weekId) {
+    if (!state.pendingGoldNotifications) return;
+    state.pendingGoldNotifications = state.pendingGoldNotifications.filter(
+      n => !(n.childId === childId && n.weekId === weekId)
+    );
+    saveState();
+  }
+  
+  return {
+    isWeekClosed,
+    getPendingWeeks,
+    settleWeek,
+    settlePendingWeeks,
+    getPendingGoldNotifications,
+    markGoldNotificationSeen
+  };
 })();
 
 /* ============================================================
@@ -3928,10 +4078,29 @@ function renderHome() {
     div.addEventListener('click', () => {
       Audio.click();
       selectedChildId = c.id;
-      // ¿Hay notificaciones pendientes de ajustes manuales?
+      
+      // 🥇 Prioridad 1: notificaciones de campeón de la semana
+      const goldNotifs = Champion.getPendingGoldNotifications(c.id);
+      if (goldNotifs.length > 0) {
+        const notif = goldNotifs[goldNotifs.length - 1];
+        document.getElementById('champion-week').textContent = 'Semana ' + notif.weekId;
+        document.getElementById('champion-points').textContent = notif.points + ' puntos';
+        Audio.win();
+        UI.confetti();
+        setTimeout(() => UI.confetti(), 400);
+        UI.show('screen-champion');
+        return;
+      }
+      
+      // Prioridad 2: notificaciones de ajustes manuales
       const pending = (c.adjustments || []).filter(a => a.notify && !a.seen);
       if (pending.length > 0) {
-        showAdjustmentNotification(c, pending[pending.length - 1]);
+        try {
+          showAdjustmentNotification(c, pending[pending.length - 1]);
+        } catch(e) {
+          console.error('Error mostrando notificación:', e);
+          renderHome();
+        }
         return;
       }
       renderHome();
@@ -3986,6 +4155,16 @@ function renderHome() {
 let state = loadState();
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 🥇 Procesar campeones de semanas pasadas
+  try {
+    const settled = Champion.settlePendingWeeks();
+    if (settled.length > 0) {
+      console.log('🥇 Campeones procesados:', settled);
+    }
+  } catch (e) {
+    console.error('Error settling weeks:', e);
+  }
+  
   renderHome();
   ParentPanel.renderAvatarPicker();
 
@@ -4134,6 +4313,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-duel-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
 
   // Parent
+  document.getElementById('btn-champion-close').addEventListener('click', () => {
+    const child = state.children.find(x => x.id === selectedChildId);
+    if (child) {
+      const pending = Champion.getPendingGoldNotifications(child.id);
+      pending.forEach(n => Champion.markGoldNotificationSeen(child.id, n.weekId));
+    }
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+
   document.getElementById('btn-adj-notif-close').addEventListener('click', () => {
     // Marcar la última notificación como leída
     const child = state.children.find(x => x.id === selectedChildId);
