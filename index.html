@@ -5003,6 +5003,94 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (MasterGame.getSession()) MasterGame.check();
     else Game.check();
   });
+  
+  // NEXT (para feedback)
+  document.getElementById('btn-next-word').addEventListener('click', () => {
+    if (MasterGame.getSession()) MasterGame.nextWord();
+    else if (Game.getSession()) Game.nextWord();
+  });
+  
+  // PAUSE (btn-game-back)
+  document.getElementById('btn-game-back').addEventListener('click', () => {
+    Speech.stop();
+    if (practiceMode) practiceMode = false;
+    if (MasterGame.getSession()) {
+      MasterGame.clear();
+      selectedChildId = null;
+      renderHome();
+      UI.show('screen-home');
+      return;
+    }
+    if (TimeAttack.getSession()) {
+      TimeAttack.clear();
+      selectedChildId = null;
+      renderHome();
+      UI.show('screen-home');
+      return;
+    }
+    if (Game.getSession()) {
+      const session = Game.getSession();
+      const total = session.order ? session.order.length : 0;
+      const current = (session.index || 0) + 1;
+      const phaseNames = { 2: 'Phase 2: Copy', 3: 'Phase 3: Listen & Copy', 4: 'Phase 4: Listen Only' };
+      const phaseName = phaseNames[session.phase] || 'Phase';
+      UI.modal(`
+        <div class="pause-modal-content">
+          <h2>Pausa</h2>
+          <div class="pause-modal-info">
+            Estas en <strong>${phaseName}</strong><br>
+            Palabra <strong>${current}</strong> de <strong>${total}</strong>
+          </div>
+          <p class="pause-modal-note">El progreso se guarda automaticamente.</p>
+          <div class="pause-modal-actions">
+            <button class="btn-primary" id="modal-continue">Continuar</button>
+            <button class="btn-success" id="modal-save-exit">Guardar y salir</button>
+          </div>
+        </div>
+      `);
+      document.getElementById('modal-continue').addEventListener('click', () => {
+        Audio.click();
+        UI.closeModal();
+        setTimeout(() => {
+          const input = document.getElementById('answer-input');
+          if (input) { input.disabled = false; input.focus(); }
+          const checkBtn = document.getElementById('btn-check');
+          if (checkBtn) checkBtn.disabled = false;
+          try { MasterGame.resetChecking && MasterGame.resetChecking(); } catch(e) {}
+        }, 100);
+      });
+      document.getElementById('modal-save-exit').addEventListener('click', () => {
+        Audio.click();
+        try { Game.saveProgress && Game.saveProgress(); } catch(e) {}
+        UI.closeModal();
+        UI.toast('Progreso guardado', 'success');
+        setTimeout(() => {
+          selectedChildId = null;
+          renderHome();
+          UI.show('screen-home');
+        }, 300);
+      });
+      return;
+    }
+    UI.back();
+  });
+  
+  // LISTEN AGAIN (feedback)
+  document.getElementById('btn-hear-again').addEventListener('click', () => {
+    const w = document.getElementById('feedback-correction').dataset.word;
+    if (w) Speech.say(w);
+  });
+  
+  // RETRY PHASE
+  document.getElementById('btn-retry-phase').addEventListener('click', () => {
+    if (Game.getSession()) Game.retryPhase();
+    else if (MasterGame.getSession()) MasterGame.startTurn ? MasterGame.startTurn() : null;
+  });
+  
+  // NEXT PHASE
+  document.getElementById('btn-next-phase').addEventListener('click', () => {
+    if (Game.getSession()) Game.nextPhase();
+  });
 
   // 🔊 Listen buttons
   const btnListenNormal = document.getElementById('btn-listen-normal');
