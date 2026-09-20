@@ -661,6 +661,168 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   margin-bottom: 4px;
 }
 
+
+/* ============================================================
+   💰 AJUSTE MANUAL DE PUNTOS
+   ============================================================ */
+.adjust-modal-content {
+  text-align: left;
+}
+.adjust-modal-content h2 {
+  color: var(--primary);
+  font-size: 1.6rem;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.adjust-modal-content label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  margin: 16px 0 8px;
+  font-size: 1rem;
+}
+.adjust-modal-content input[type="number"],
+.adjust-modal-content input[type="text"],
+.adjust-modal-content textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 3px solid #ddd6fe;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 1.05rem;
+  background: #fafaff;
+  color: var(--text);
+}
+.adjust-modal-content input:focus,
+.adjust-modal-content textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(124,58,237,0.15);
+}
+.adjust-modal-content textarea {
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.adjust-modal-content .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+.adjust-modal-content .checkbox-row input {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  margin: 0;
+}
+.adjust-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.adjust-modal-actions button {
+  padding: 14px 24px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  min-width: 120px;
+}
+/* Botón de puntos en la lista de niños */
+.parent-item button.pts-btn {
+  background: var(--success);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--success-dark);
+}
+/* Historial de ajustes */
+.adjustment-log {
+  margin-top: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: #f9fafb;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.adjustment-entry {
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border-left: 4px solid var(--success);
+  font-size: 0.95rem;
+}
+.adjustment-entry.negative {
+  border-left-color: var(--danger);
+}
+.adjustment-entry .adj-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.adjustment-entry .adj-amount {
+  color: var(--success-dark);
+  font-size: 1.1rem;
+}
+.adjustment-entry.negative .adj-amount {
+  color: var(--danger-dark);
+}
+.adjustment-entry .adj-date {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.adjustment-entry .adj-reason {
+  color: var(--text);
+  font-weight: 500;
+  font-style: italic;
+}
+/* Notificación al niño */
+.adjustment-notification {
+  text-align: center;
+  padding: 20px;
+}
+.adjustment-notification h2 {
+  color: var(--success-dark);
+  font-size: 1.8rem;
+  margin-bottom: 16px;
+}
+.adjustment-notification .adj-notif-amount {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--success);
+  margin: 20px 0;
+}
+.adjustment-notification .adj-notif-reason {
+  background: #f0fdf4;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  margin: 20px 0;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+.adjustment-notification .adj-notif-reason strong {
+  color: var(--primary);
+  display: block;
+  margin-bottom: 6px;
+}
+.adjustment-notification .adj-notif-total {
+  color: var(--text-soft);
+  font-size: 1.1rem;
+  margin-bottom: 24px;
+}
+.adjustment-notification .adj-notif-total strong {
+  color: var(--primary);
+  font-size: 1.4rem;
+}
+
 </style>
 </head>
 <body>
@@ -965,6 +1127,22 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <p style="color:var(--text-soft); margin-bottom:16px;">Tap to redeem with your points</p>
     <div id="week-rewards-list"></div>
     <button id="btn-back-home" class="btn-success big" style="margin-top:20px;">🏠 HOME</button>
+  </div>
+</section>
+
+<!-- 💰 AJUSTE MANUAL DE PUNTOS (notificación al niño) -->
+<section id="screen-adjustment-notification" class="screen">
+  <div class="adjustment-notification">
+    <h2 id="adj-notif-title">🎉 ¡Tienes puntos nuevos!</h2>
+    <div class="adj-notif-amount" id="adj-notif-amount">+50 pts</div>
+    <div class="adj-notif-reason">
+      <strong>Motivo:</strong>
+      <span id="adj-notif-reason">Ayudó a recoger la mesa</span>
+    </div>
+    <div class="adj-notif-total">
+      Total: <strong id="adj-notif-total">390 pts</strong>
+    </div>
+    <button class="btn-success big" id="btn-adj-notif-close">¡Genial!</button>
   </div>
 </section>
 
@@ -1343,6 +1521,12 @@ function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function getActiveWeek() {
   return state.weeks.find(w => w.id === state.activeWeekId) || state.weeks[0] || null;
+}
+
+function getTotalWeeks(child) {
+  const real = (child.weeksCompleted || []).length;
+  const bonus = child.manualWeeksBonus || 0;
+  return Math.max(0, real + bonus);
 }
 
 /* ============================================================
@@ -2161,14 +2345,25 @@ const Master = (() => {
     return (c.weeksCompleted || []).length >= 2;
   }
   function menu() {
-    if (!isUnlocked(selectedChildId)) {
-      const c = state.children.find(x => x.id === selectedChildId);
-      const done = (c?.weeksCompleted || []).length;
-      UI.toast(`Complete ${2 - done} more week${2-done!==1?'s':''} to unlock! 🔒`, 'error');
+    const c = state.children.find(x => x.id === selectedChildId);
+    if (!c) return;
+    const totalWeeks = getTotalWeeks(c);
+    const poolSize = (c.masterPool || []).length;
+    const weeksOk = totalWeeks >= 2;
+    const poolOk = poolSize >= 12;
+    if (!weeksOk && !poolOk) {
+      UI.toast(`Te faltan semanas (${totalWeeks}/2) y palabras (${poolSize}/12) 🔒`, 'error');
       return;
     }
-    const c = state.children.find(x => x.id === selectedChildId);
-    document.getElementById('master-pool-count').textContent = `Words in your collection: ${(c.masterPool || []).length}`;
+    if (!weeksOk) {
+      UI.toast(`Necesitas 2 semanas completas. ¡Llevas ${totalWeeks}! 🔒`, 'error');
+      return;
+    }
+    if (!poolOk) {
+      UI.toast(`Necesitas al menos 12 palabras. Llevas ${poolSize}. Pide a tus padres que añadan más 📚`, 'error');
+      return;
+    }
+    document.getElementById('master-pool-count').textContent = `Words in your collection: ${poolSize}`;
     UI.show('screen-master');
   }
   function startMode(mode) {
@@ -2182,21 +2377,218 @@ const Master = (() => {
 /* ============================================================
    🎲 RANDOM REVIEW
    ============================================================ */
+/* ============================================================
+   🏆 MASTER GAME — 12 palabras aleatorias en Fase 4
+   ============================================================ */
+const MasterGame = (() => {
+  let session = null;
+
+  function start(childId, words) {
+    const parsed = Words.parse(words.join('\n'));
+    if (parsed.length === 0) { UI.toast('No valid words', 'error'); return; }
+    
+    session = {
+      childId,
+      wordList: parsed,
+      order: [...parsed].sort(() => Math.random() - 0.5),
+      index: 0,
+      correctCount: 0,
+      wrongList: [],
+      startTime: Date.now(),
+      isMaster: true
+    };
+    
+    renderWord();
+    UI.show('screen-game');
+  }
+
+  function renderWord() {
+    const wordObj = session.order[session.index];
+    if (!wordObj) { endPhase(); return; }
+    const total = session.order.length;
+    
+    document.getElementById('game-phase-title').textContent = '🏆 Master Mode';
+    document.getElementById('game-progress-text').textContent = `${session.index+1} / ${total}`;
+    document.getElementById('game-progress-fill').style.width = ((session.index) / total * 100) + '%';
+    document.getElementById('game-instruction').textContent = '🎧 Listen and write:';
+    
+    const wordText = document.getElementById('word-text');
+    const wordDisplay = document.getElementById('word-display');
+    const input = document.getElementById('answer-input');
+    
+    input.value = ''; input.disabled = false;
+    document.getElementById('btn-check').disabled = false;
+    setTimeout(() => input.focus(), 100);
+    
+    wordText.textContent = '*****';
+    wordDisplay.classList.add('audio-mode');
+    setTimeout(() => Speech.say(wordObj.alts.join('/'), 1.0), 400);
+  }
+
+  function playAudio(rate) {
+    const wordObj = session.order[session.index];
+    if (!wordObj) return;
+    Audio.click();
+    Speech.say(wordObj.alts.join('/'), rate || 1.0);
+  }
+
+  let isChecking = false;
+  function check() {
+    if (isChecking) return;
+    isChecking = true;
+    const input = document.getElementById('answer-input');
+    const checkBtn = document.getElementById('btn-check');
+    input.disabled = true; checkBtn.disabled = true;
+    
+    const userAnswer = input.value.trim();
+    const wordObj = session.order[session.index];
+    const result = Words.evaluate(userAnswer, wordObj);
+    
+    if (result.correct) {
+      session.correctCount++;
+      saveProgress();
+      Audio.correct(); UI.confetti();
+      showFeedback(true, wordObj, userAnswer);
+    } else {
+      session.wrongList.push({ word: wordObj.display, yours: userAnswer });
+      saveProgress();
+      Audio.wrong();
+      showFeedback(false, wordObj, userAnswer);
+    }
+  }
+
+  function showFeedback(correct, wordObj, yours) {
+    document.getElementById('feedback-icon').textContent = correct ? '🎉' : '💪';
+    const title = document.getElementById('feedback-title');
+    title.textContent = correct ? 'GREAT JOB!' : 'Almost!';
+    title.style.color = correct ? 'var(--success)' : 'var(--warning)';
+    
+    const points = document.getElementById('feedback-points');
+    points.style.display = 'none';
+    
+    const streak = document.getElementById('feedback-streak');
+    streak.textContent = (correct && session.correctCount >= 3) ? `🔥 Streak x${session.correctCount}!` : '';
+    
+    const corr = document.getElementById('feedback-correction');
+    if (correct) corr.classList.add('hidden');
+    else {
+      corr.classList.remove('hidden');
+      document.getElementById('feedback-yours').textContent = yours || '(empty)';
+      document.getElementById('feedback-correct').textContent = wordObj.display;
+      corr.dataset.word = wordObj.alts.join('/');
+    }
+    UI.show('screen-feedback');
+  }
+
+  function nextWord() {
+    isChecking = false;
+    session.index++;
+    if (session.index >= session.order.length) endPhase();
+    else { renderWord(); UI.show('screen-game'); }
+  }
+
+  function endPhase() {
+    const total = session.order.length;
+    const correct = session.correctCount;
+    const pct = Math.round(correct / total * 100);
+    
+    // Puntos: 1 por palabra + 5 bonus si ≥80% aciertos
+    const basePts = correct;
+    const pctThreshold = 80;
+    const bonus = pct >= pctThreshold ? 5 : 0;
+    const earned = basePts + bonus;
+    
+    // Aplicar tope diario del cubo Master
+    const child = state.children.find(c => c.id === session.childId);
+    let actualEarned = earned;
+    let capped = false;
+    if (child) {
+      const result = DailyPoints.add(child, earned, 'master');
+      actualEarned = result.actual;
+      capped = result.capped;
+    }
+    
+    // Guardar en historial
+    if (child) {
+      if (!child.history) child.history = [];
+      child.history.push({
+        type: 'master',
+        date: new Date().toISOString(),
+        points: actualEarned,
+        correct: correct,
+        total: total,
+        pct: pct
+      });
+    }
+    saveState();
+    if (child) Rewards.checkBadges(child.id);
+    
+    // Mostrar resumen
+    document.getElementById('summary-title').textContent = '🏆 Master Mode Complete!';
+    document.getElementById('summary-correct').textContent = `${correct} / ${total}`;
+    document.getElementById('summary-accuracy').textContent = pct + '%';
+    document.getElementById('summary-points').textContent = '+' + actualEarned + (capped ? ' (capped at daily limit)' : '') + (bonus > 0 ? ` (bonus +${bonus})` : '');
+    document.getElementById('summary-time').textContent = `${Math.floor((Date.now()-session.startTime)/60000)}m ${Math.floor(((Date.now()-session.startTime)/1000)%60)}s`;
+    
+    const status = document.getElementById('summary-status');
+    status.textContent = pct >= pctThreshold ? '✅ EXCELLENT!' : '💪 Keep practicing!';
+    status.className = 'summary-status ' + (pct >= pctThreshold ? 'passed' : 'failed');
+    
+    const review = document.getElementById('summary-review');
+    const reviewList = document.getElementById('summary-review-list');
+    if (session.wrongList.length > 0) {
+      review.classList.remove('hidden');
+      reviewList.innerHTML = '';
+      session.wrongList.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${item.word}</strong> — you wrote: <em>${item.yours || '(empty)'}</em>`;
+        reviewList.appendChild(li);
+      });
+    } else review.classList.add('hidden');
+    
+    // Ocultar "NEXT PHASE" y mostrar "RETRY" + "HOME"
+    document.getElementById('btn-next-phase').style.display = 'none';
+    
+    UI.show('screen-phase-summary');
+    
+    // Cambiar comportamiento del botón Retry para que vuelva a lanzar Master
+    const retryBtn = document.getElementById('btn-retry-phase');
+    retryBtn.textContent = '🏠 Home';
+    retryBtn.onclick = () => {
+      session = null;
+      selectedChildId = null;
+      renderHome();
+      UI.show('screen-home');
+    };
+  }
+
+  function saveProgress() { /* No persistimos Master entre sesiones */ }
+  function getSession() { return session; }
+
+  return { start, playAudio, check, nextWord, getSession };
+})();
+
 const RandomReview = (() => {
   function start(childId) {
     const c = state.children.find(x => x.id === childId);
-    if (!c || !c.masterPool || c.masterPool.length === 0) { UI.toast('No words in pool yet', 'error'); return; }
-    // Creamos una "semana virtual"
-    const virtualWeekId = 'master_' + Date.now();
-    state.weeks.push({
-      id: virtualWeekId,
-      label: '🎲 Master Review',
-      words: [...c.masterPool],
-      createdAt: new Date().toISOString(),
-      isVirtual: true
-    });
-    // Lanzamos Game con esa semana
-    Game.start(childId, virtualWeekId);
+    if (!c || !c.masterPool || c.masterPool.length < 12) {
+      UI.toast('Necesitas al menos 12 palabras en tu colección 📚', 'error');
+      return;
+    }
+    
+    // Comprobar tope diario de Master
+    DailyPoints.resetDailyIfNeeded(c);
+    if (DailyPoints.isCapped(c, 'master')) {
+      UI.toast('🌙 Has alcanzado el máximo de puntos Master de hoy. ¡Vuelve mañana!', 'error');
+      return;
+    }
+    
+    // Coger 12 palabras aleatorias del pool
+    const shuffled = [...c.masterPool].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, 12);
+    
+    // Lanzar el juego Master directo
+    MasterGame.start(childId, selected);
   }
   return { start };
 })();
@@ -2669,13 +3061,17 @@ const ParentPanel = (() => {
       const div = document.createElement('div');
       div.className = 'parent-item';
       const done = (c.weeksCompleted || []).length;
-      div.innerHTML = `<span>${c.avatar || '👤'} <strong>${c.name}</strong> — ${c.totalPoints||0} pts · ${done} semanas · ${(c.masterPool||[]).length} palabras pool</span>
+      const totalWeeksChild = getTotalWeeks(c);
+      div.innerHTML = `<span>${c.avatar || '👤'} <strong>${c.name}</strong> — ${c.totalPoints||0} pts · ${totalWeeksChild} semanas · ${(c.masterPool||[]).length} palabras pool</span>
                        <div class="item-actions">
+                         <button class="pts-btn" data-pts="${c.id}">➕ Puntos</button>
                          <button class="reset-btn" data-reset="${c.id}">🔄 Reset</button>
                          <button class="del-btn" data-del="${c.id}">🗑️ Borrar</button>
                        </div>`;
       list.appendChild(div);
     });
+
+    list.querySelectorAll('[data-pts]').forEach(b => b.addEventListener('click', () => openAdjustModal(b.dataset.pts)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
       if (confirm('¿Borrar este niño y su progreso?')) {
         state.children = state.children.filter(c => c.id !== b.dataset.del);
@@ -2776,18 +3172,53 @@ const ParentPanel = (() => {
     const reports = document.getElementById('parent-reports');
     reports.innerHTML = state.children.length === 0 ? '<p style="color:#999;">(no hay niños)</p>' : '';
     state.children.forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'parent-item';
-      div.style.flexDirection = 'column';
-      div.style.alignItems = 'flex-start';
+      const wrap = document.createElement('div');
+      wrap.style.marginBottom = '24px';
       const reds = (c.redeemed || []).length;
       const hist = (c.history || []).length;
       const done = (c.weeksCompleted || []).length;
       const pool = (c.masterPool || []).length;
-      div.innerHTML = `<strong>${c.avatar||'👤'} ${c.name}</strong>
+      const adj = (c.adjustments || []).length;
+
+      // Info general
+      const info = document.createElement('div');
+      info.className = 'parent-item';
+      info.style.flexDirection = 'column';
+      info.style.alignItems = 'flex-start';
+      info.innerHTML = `<strong>${c.avatar||'👤'} ${c.name}</strong>
         <span style="color:var(--text-soft);">Puntos: ${c.totalPoints||0} | Insignias: ${(c.badges||[]).join(' ') || '—'}</span>
-        <span style="color:var(--text-soft);">Semanas completadas: ${done} | Master Pool: ${pool} palabras | Canjes: ${reds}</span>`;
-      reports.appendChild(div);
+        <span style="color:var(--text-soft);">Semanas completadas: ${done} | Master Pool: ${pool} palabras | Canjes: ${reds}</span>
+        <span style="color:var(--text-soft);">Ajustes manuales: ${adj}</span>`;
+      wrap.appendChild(info);
+
+      // Historial de ajustes
+      if (adj > 0) {
+        const logTitle = document.createElement('h4');
+        logTitle.textContent = '📝 Ajustes manuales de puntos';
+        logTitle.style.marginTop = '12px';
+        logTitle.style.color = 'var(--primary)';
+        wrap.appendChild(logTitle);
+
+        const log = document.createElement('div');
+        log.className = 'adjustment-log';
+        (c.adjustments || []).slice().reverse().forEach(a => {
+          const entry = document.createElement('div');
+          entry.className = 'adjustment-entry' + (a.amount < 0 ? ' negative' : '');
+          const d = new Date(a.date);
+          const dateStr = d.toLocaleDateString('es-ES') + ' ' + d.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+          entry.innerHTML = `
+            <div class="adj-header">
+              <span class="adj-amount">${a.amount > 0 ? '➕ +' : '➖ '}${a.amount} pts</span>
+              <span class="adj-date">${dateStr}</span>
+            </div>
+            <div class="adj-reason">${a.reason}</div>
+          `;
+          log.appendChild(entry);
+        });
+        wrap.appendChild(log);
+      }
+
+      reports.appendChild(wrap);
     });
 
     document.getElementById('new-pin-input').value = state.settings.parentPIN || '1234';
@@ -2973,12 +3404,144 @@ const ParentPanel = (() => {
     localStorage.removeItem(STORAGE_KEY); location.reload();
   }
 
-  return { open, submitPin, render, saveThreshold, savePoints, addChild, addReward, savePin, resetProgressAll, resetAll, renderAvatarPicker, openAddWeekModal };
+  function openAdjustModal(childId) {
+    const child = state.children.find(x => x.id === childId);
+    if (!child) return;
+    const weeksReal = (child.weeksCompleted || []).length;
+    const weeksBonus = child.manualWeeksBonus || 0;
+    const weeksTotal = Math.max(0, weeksReal + weeksBonus);
+    UI.modal(`
+      <div class="adjust-modal-content">
+        <h2>➕ Ajustar datos de ${child.name}</h2>
+        
+        <div style="background:#f0fdf4; padding:14px 18px; border-radius:var(--radius-sm); margin-bottom:16px;">
+          <label style="margin-top:0;">💰 Puntos (0 = no cambiar)</label>
+          <input type="number" id="adj-amount" value="0" step="1" style="margin-top:6px;">
+        </div>
+        
+        <div style="background:#ede9fe; padding:14px 18px; border-radius:var(--radius-sm); margin-bottom:16px;">
+          <label style="margin-top:0;">📅 Semanas completadas</label>
+          <p style="color:var(--text-soft); font-size:0.9rem; margin:6px 0;">Actuales: <strong>${weeksTotal}</strong> (${weeksReal} reales${weeksBonus !== 0 ? ' + ' + weeksBonus + ' manuales' : ''})</p>
+          <input type="number" id="adj-weeks" value="${weeksTotal}" min="0" step="1" style="margin-top:6px;">
+          <p style="color:var(--text-soft); font-size:0.8rem; margin-top:4px;">Escribe el total final (mínimo 0)</p>
+        </div>
+        
+        <label>Motivo (obligatorio):</label>
+        <textarea id="adj-reason" placeholder="Ej: Hizo la semana 3 en papel"></textarea>
+        
+        <div class="checkbox-row">
+          <input type="checkbox" id="adj-notify" checked>
+          <label for="adj-notify" style="margin:0; cursor:pointer;">Notificar al niño al abrir la app</label>
+        </div>
+        
+        <div class="adjust-modal-actions">
+          <button class="btn-secondary" id="modal-cancel">Cancelar</button>
+          <button class="btn-success" id="modal-confirm">✅ Aplicar</button>
+        </div>
+      </div>
+    `);
+    document.getElementById('modal-cancel').addEventListener('click', () => UI.closeModal());
+    document.getElementById('modal-confirm').addEventListener('click', () => applyAdjustment(childId));
+  }
+
+  function applyAdjustment(childId) {
+    const child = state.children.find(x => x.id === childId);
+    if (!child) return;
+    const amount = parseInt(document.getElementById('adj-amount').value) || 0;
+    const newWeeksTotal = parseInt(document.getElementById('adj-weeks').value);
+    const reason = document.getElementById('adj-reason').value.trim();
+    const notify = document.getElementById('adj-notify').checked;
+
+    if (!reason) { UI.toast('El motivo es obligatorio', 'error'); return; }
+    if (amount === 0 && newWeeksTotal === Math.max(0, (child.weeksCompleted || []).length + (child.manualWeeksBonus || 0))) {
+      UI.toast('No hay cambios que aplicar', 'error'); return;
+    }
+
+    // === PUNTOS ===
+    let actualPointsApplied = 0;
+    if (amount !== 0) {
+      const current = child.totalPoints || 0;
+      let newTotal = current + amount;
+      actualPointsApplied = amount;
+      if (newTotal < 0) {
+        actualPointsApplied = -current;
+        newTotal = 0;
+      }
+      child.totalPoints = newTotal;
+    }
+
+    // === SEMANAS ===
+    const weeksReal = (child.weeksCompleted || []).length;
+    let weeksDelta = 0;
+    if (!isNaN(newWeeksTotal)) {
+      const target = Math.max(0, newWeeksTotal);
+      weeksDelta = target - (weeksReal + (child.manualWeeksBonus || 0));
+      if (weeksDelta !== 0) {
+        child.manualWeeksBonus = (child.manualWeeksBonus || 0) + weeksDelta;
+        // Asegurar que el total nunca sea negativo
+        if (weeksReal + child.manualWeeksBonus < 0) {
+          child.manualWeeksBonus = -weeksReal;
+          weeksDelta = child.manualWeeksBonus - (child.manualWeeksBonus - weeksDelta);
+        }
+      }
+    }
+
+    // === LOG ===
+    if (!child.adjustments) child.adjustments = [];
+    const entry = {
+      date: new Date().toISOString(),
+      pointsChange: actualPointsApplied,
+      weeksChange: weeksDelta,
+      reason: reason,
+      notify: !!notify
+    };
+    child.adjustments.push(entry);
+
+    if (!child.history) child.history = [];
+    child.history.push({
+      type: 'manual',
+      date: entry.date,
+      pointsChange: actualPointsApplied,
+      weeksChange: weeksDelta,
+      reason: reason
+    });
+
+    Rewards.checkBadges(child.id);
+
+    saveState();
+    UI.closeModal();
+    render();
+    renderHome();
+
+    // Mensaje resumen
+    const parts = [];
+    if (actualPointsApplied !== 0) parts.push((actualPointsApplied > 0 ? '+' : '') + actualPointsApplied + ' pts');
+    if (weeksDelta !== 0) parts.push((weeksDelta > 0 ? '+' : '') + weeksDelta + ' semanas');
+    UI.toast('✅ ' + parts.join(' · ') + ' a ' + child.name, 'success');
+  }
+
+
+  return { open, submitPin, render, saveThreshold, savePoints, addChild, addReward, savePin, resetProgressAll, resetAll, renderAvatarPicker, openAddWeekModal, openAdjustModal };
 })();
 
 /* ============================================================
    🏠 HOME
    ============================================================ */
+/* ============================================================
+   💰 NOTIFICACIÓN DE AJUSTE MANUAL (global)
+   ============================================================ */
+function showAdjustmentNotification(child, adj) {
+  const sign = adj.amount > 0 ? '+' : '';
+  document.getElementById('adj-notif-title').textContent = adj.amount > 0 ? '🎉 ¡Tienes puntos nuevos!' : '📉 Ajuste de puntos';
+  document.getElementById('adj-notif-amount').textContent = sign + adj.amount + ' pts';
+  document.getElementById('adj-notif-amount').style.color = adj.amount > 0 ? 'var(--success)' : 'var(--danger)';
+  document.getElementById('adj-notif-reason').textContent = adj.reason;
+  document.getElementById('adj-notif-total').textContent = (child.totalPoints || 0) + ' pts';
+  Audio.win();
+  if (adj.amount > 0) UI.confetti();
+  UI.show('screen-adjustment-notification');
+}
+
 function renderHome() {
   const list = document.getElementById('children-list');
   const modeGrid = document.getElementById('mode-grid');
@@ -3001,6 +3564,12 @@ function renderHome() {
     div.addEventListener('click', () => {
       Audio.click();
       selectedChildId = c.id;
+      // ¿Hay notificaciones pendientes de ajustes manuales?
+      const pending = (c.adjustments || []).filter(a => a.notify && !a.seen);
+      if (pending.length > 0) {
+        showAdjustmentNotification(c, pending[pending.length - 1]);
+        return;
+      }
       renderHome();
     });
     list.appendChild(div);
@@ -3011,10 +3580,20 @@ function renderHome() {
     // Actualizamos contador de Master
     const c = state.children.find(x => x.id === selectedChildId);
     const done = (c?.weeksCompleted || []).length;
-    document.getElementById('master-progress-count').textContent = `${Math.min(done,2)}/2`;
+    const totalWeeks = getTotalWeeks(c);
+    const poolSize = (c?.masterPool || []).length;
+    const weeksOk = totalWeeks >= 2;
+    const poolOk = poolSize >= 12;
     const masterTile = document.getElementById('tile-master');
-    if (done >= 2) masterTile.classList.remove('locked');
-    else masterTile.classList.add('locked');
+    const masterCountEl = document.getElementById('master-progress-count');
+    masterCountEl.textContent = `📅 ${Math.min(totalWeeks, 2)}/2 · 📚 ${Math.min(poolSize, 12)}/12`;
+    if (weeksOk && poolOk) {
+      masterTile.classList.remove('locked');
+      masterCountEl.textContent = `📅 2/2 · 📚 12+`;
+    } else {
+      masterTile.classList.add('locked');
+    }
+
 
     // 🔄 Badge "Continue" si hay partida a medias en la semana activa
     const activeWeek = getActiveWeek();
@@ -3077,16 +3656,41 @@ document.addEventListener('DOMContentLoaded', () => {
     if (session) { session.phase = 2; session.index = 0; session.correctCount = 0; session.wrongList = []; session.phasePoints = 0; session.order = []; Game.startPhase(); }
   });
 
-  document.getElementById('btn-check').addEventListener('click', () => Game.check());
+  document.getElementById('btn-check').addEventListener('click', () => {
+    const mg = MasterGame.getSession();
+    if (mg) MasterGame.check();
+    else Game.check();
+  });
 
   // 🔊 Listen buttons
   const btnListenNormal = document.getElementById('btn-listen-normal');
   const btnListenSlow = document.getElementById('btn-listen-slow');
-  if (btnListenNormal) btnListenNormal.addEventListener('click', () => Game.playAudio(1.0));
-  if (btnListenSlow) btnListenSlow.addEventListener('click', () => Game.playAudio(0.3));
-  document.getElementById('answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') Game.check(); });
+  if (btnListenNormal) btnListenNormal.addEventListener('click', () => {
+    const mg = MasterGame.getSession();
+    if (mg) MasterGame.playAudio(1.0);
+    else Game.playAudio(1.0);
+  });
+  if (btnListenSlow) btnListenSlow.addEventListener('click', () => {
+    const mg = MasterGame.getSession();
+    if (mg) MasterGame.playAudio(0.3);
+    else Game.playAudio(0.3);
+  });
+  document.getElementById('answer-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const mg = MasterGame.getSession();
+      if (mg) MasterGame.check();
+      else Game.check();
+    }
+  });
   document.getElementById('btn-game-back').addEventListener('click', () => {
     Speech.stop();
+    // Si estamos en Master Mode, salir directo
+    if (MasterGame.getSession()) {
+      selectedChildId = null;
+      renderHome();
+      UI.show('screen-home');
+      return;
+    }
     const session = Game.getSession();
     if (!session) { UI.back(); return; }
     const total = session.order ? session.order.length : 0;
@@ -3127,7 +3731,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 300);
     });
   });
-  document.getElementById('btn-next-word').addEventListener('click', () => Game.nextWord());
+  document.getElementById('btn-next-word').addEventListener('click', () => {
+    const mg = MasterGame.getSession();
+    if (mg) MasterGame.nextWord();
+    else Game.nextWord();
+  });
   document.getElementById('btn-hear-again').addEventListener('click', () => {
     const w = document.getElementById('feedback-correction').dataset.word;
     if (w) Speech.say(w);
@@ -3158,6 +3766,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-duel-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
 
   // Parent
+  document.getElementById('btn-adj-notif-close').addEventListener('click', () => {
+    // Marcar la última notificación como leída
+    const child = state.children.find(x => x.id === selectedChildId);
+    if (child && child.adjustments) {
+      const pending = child.adjustments.filter(a => a.notify && !a.seen);
+      if (pending.length > 0) {
+        pending[pending.length - 1].seen = true;
+        saveState();
+      }
+    }
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+
   document.getElementById('btn-open-parent').addEventListener('click', () => ParentPanel.open());
   document.getElementById('btn-pin-submit').addEventListener('click', () => ParentPanel.submitPin());
   document.getElementById('pin-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') ParentPanel.submitPin(); });
