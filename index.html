@@ -1462,18 +1462,64 @@ const DEFAULT_STATE = {
   }
 };
 
-let state = loadState();
 let selectedChildId = null;
+
+
+// 👦 Migrar un niño al nuevo modelo
+function migrateChildData(child) {
+  if (!child) return child;
+  
+  // Si badges es un array (formato antiguo), migrar a objeto
+  if (Array.isArray(child.badges)) {
+    child.badges = migrateBadgesToObject(child.badges);
+  } else if (!child.badges || typeof child.badges !== 'object') {
+    child.badges = { bronze: 0, silver: 0, gold: 0 };
+  }
+  
+  // Asegurar campos nuevos
+  if (!child.weeklyMedals) child.weeklyMedals = [];
+  if (!child.dailyPointsHistory) child.dailyPointsHistory = {};
+  
+  // 🔧 RECALCULAR badges desde weeklyMedals (fuente de verdad)
+  // Esto asegura que si weeklyMedals tiene medallas, badges las refleje
+  const counts = { bronze: 0, silver: 0, gold: 0 };
+  (child.weeklyMedals || []).forEach(m => {
+    if (m && m.medal && counts[m.medal] !== undefined) {
+      counts[m.medal]++;
+    }
+  });
+  // Solo sobreescribir si weeklyMedals tiene medallas (para no borrar datos históricos)
+  const totalFromMedals = counts.bronze + counts.silver + counts.gold;
+  const totalFromBadges = (child.badges.bronze || 0) + (child.badges.silver || 0) + (child.badges.gold || 0);
+  if (totalFromMedals > 0 && totalFromMedals >= totalFromBadges) {
+    child.badges = counts;
+  }
+  
+  return child;
+}
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return migrateFromV3();
     const parsed = JSON.parse(raw);
-    return {
+    const result = {
       ...DEFAULT_STATE, ...parsed,
       settings: { ...DEFAULT_STATE.settings, ...(parsed.settings||{}), points: { ...DEFAULT_STATE.settings.points, ...((parsed.settings||{}).points||{}) } }
     };
+    // Migrar cada niño al nuevo modelo
+    if (result.children && Array.isArray(result.children)) {
+      result.children = result.children.map(migrateChildData);
+      // 🔧 FORZAR recálculo de badges desde weeklyMedals (fuente de verdad)
+      result.children.forEach(child => {
+        const counts = { bronze: 0, silver: 0, gold: 0 };
+        (child.weeklyMedals || []).forEach(m => {
+          if (m && m.medal && counts[m.medal] !== undefined) counts[m.medal]++;
+        });
+        child.badges = counts;
+      });
+    }
+    return result;
   } catch (e) { return JSON.parse(JSON.stringify(DEFAULT_STATE)); }
 }
 
@@ -1487,7 +1533,9 @@ function migrateFromV3() {
     newState.children = (oldData.children || []).map(c => ({
       id: c.id, name: c.name, avatar: c.avatar,
       totalPoints: c.totalPoints || 0,
-      badges: c.badges || [],
+      badges: Array.isArray(c.badges) ? migrateBadgesToObject(c.badges) : (c.badges || { bronze: 0, silver: 0, gold: 0 }),
+      weeklyMedals: c.weeklyMedals || [],
+      dailyPointsHistory: c.dailyPointsHistory || {},
       history: c.history || [],
       redeemed: c.redeemed || [],
       masterPool: c.masterPool || [],
@@ -1521,6 +1569,127 @@ function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function getActiveWeek() {
   return state.weeks.find(w => w.id === state.activeWeekId) || state.weeks[0] || null;
+}
+
+
+// 📅 Semanas ISO — devuelve algo como "2025-W39"
+function getWeekId(date) {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  // Algoritmo ISO 8601
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;  // lunes=0, domingo=6
+  target.setDate(target.getDate() - dayNr + 3);  // jueves de la semana
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  const diff = target - firstThursday;
+  const weekNumber = 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+  return `${target.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+}
+
+
+// 🏅 Migrar badges de array antiguo a objeto nuevo
+function migrateBadgesToObject(oldBadges) {
+  const result = { bronze: 0, silver: 0, gold: 0 };
+  if (!Array.isArray(oldBadges)) return result;
+  oldBadges.forEach(b => {
+    if (b === '🥉') result.bronze++;
+    else if (b === '🥈') result.silver++;
+    else if (b === '🥇') result.gold++;
+  });
+  return result;
+}
+
+// 🏅 Obtener total de medallas de un niño
+
+// 🏅 Formatear badges como texto: "🥉×2 🥈×1 🥇×0" (solo los > 0)
+
+// 🔧 Recalcular contadores de badges desde weeklyMedals (por si se desincronizan)
+function recalcBadges(child) {
+  if (!child) return;
+  const counts = { bronze: 0, silver: 0, gold: 0 };
+  (child.weeklyMedals || []).forEach(m => {
+    if (m.medal && counts[m.medal] !== undefined) {
+      counts[m.medal]++;
+    }
+  });
+  child.badges = counts;
+}
+
+function formatBadges(badges) {
+  if (!badges || typeof badges !== 'object') return '';
+  const parts = [];
+  if (badges.bronze > 0) parts.push(`🥉×${badges.bronze}`);
+  if (badges.silver > 0) parts.push(`🥈×${badges.silver}`);
+  if (badges.gold > 0) parts.push(`🥇×${badges.gold}`);
+  return parts.join(' ');
+}
+
+function getTotalMedals(badges) {
+  if (!badges || typeof badges !== 'object') return 0;
+  return (badges.bronze || 0) + (badges.silver || 0) + (badges.gold || 0);
+}
+
+
+// 📅 Sumar los puntos de una semana ISO para un niño
+function getWeekPoints(child, weekId) {
+  if (!child || !child.dailyPointsHistory || !weekId) return 0;
+  let total = 0;
+  Object.keys(child.dailyPointsHistory).forEach(date => {
+    if (getWeekId(date) === weekId) {
+      total += child.dailyPointsHistory[date] || 0;
+    }
+  });
+  return total;
+}
+
+// 🏆 Determinar el ganador de una semana (entre los que completaron)
+// Devuelve un array con los IDs de los ganadores (por si hay empate)
+function getWeekWinners(weekId) {
+  if (!weekId) return [];
+  const candidates = state.children.filter(c => {
+    // Solo cuenta si completó alguna semana con ese weekId
+    return (c.weeklyMedals || []).some(m => m.weekId === weekId);
+  });
+  if (candidates.length === 0) return [];
+  
+  // Calcular puntos de la semana para cada candidato
+  const scored = candidates.map(c => ({
+    id: c.id,
+    points: getWeekPoints(c, weekId)
+  }));
+  
+  const maxPoints = Math.max(...scored.map(s => s.points));
+  if (maxPoints === 0) return []; // nadie jugó realmente
+  
+  return scored.filter(s => s.points === maxPoints).map(s => s.id);
+}
+
+// 📅 Obtener el weekId de la semana cerrada (la anterior a la actual)
+function getClosedWeekId() {
+  const today = new Date();
+  // Retroceder 7 días para estar seguro de caer en la semana anterior
+  const lastWeek = new Date(today);
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  return getWeekId(lastWeek);
+}
+
+
+// 🎯 Comprobar el estado de la semana actual para un niño
+// Devuelve { completed, perfect, weekId } o null
+function checkCurrentWeekStatus(child) {
+  const activeWeek = getActiveWeek();
+  if (!activeWeek) return null;
+  const key = child.id + '::' + activeWeek.id;
+  const prog = state.progress[key];
+  if (!prog || !prog.completed) return null;
+  // Si está completada, vemos si fue perfecta
+  // Para eso miramos el progress o el history
+  return {
+    completed: true,
+    perfect: prog.perfect === true,  // se establece en el Bloque 3
+    weekId: getWeekId(prog.completedAt || new Date()),
+    activeWeekId: activeWeek.id
+  };
 }
 
 function getTotalWeeks(child) {
@@ -1797,6 +1966,14 @@ const DailyPoints = (() => {
     const actual = Math.min(earned, remaining);
     child.dailyPoints[bucket] = current + actual;
     child.totalPoints = (child.totalPoints || 0) + actual;
+    
+    // 📅 Guardar en histórico diario (para el cálculo del campeón de la semana)
+    if (actual > 0) {
+      const today = today();
+      if (!child.dailyPointsHistory) child.dailyPointsHistory = {};
+      child.dailyPointsHistory[today] = (child.dailyPointsHistory[today] || 0) + actual;
+    }
+    
     return { actual, capped: actual < earned, remaining: max - child.dailyPoints[bucket] };
   }
 
@@ -1809,10 +1986,17 @@ const Rewards = (() => {
     if (!c) return [];
     const earned = [];
     const p = c.totalPoints || 0;
-    const currentBadges = c.badges || [];
-    const tiers = [{min:100,badge:'🥉'},{min:500,badge:'🥈'},{min:1500,badge:'🥇'},{min:3000,badge:'💎'}];
-    tiers.forEach(t => { if (p >= t.min && !currentBadges.includes(t.badge)) { currentBadges.push(t.badge); earned.push(t.badge); } });
-    c.badges = currentBadges; saveState(); return earned;
+    // Compatibilidad con formato antiguo (array) y nuevo (objeto)
+    if (Array.isArray(c.badges)) {
+      c.badges = { bronze: 0, silver: 0, gold: 0 };
+    } else if (!c.badges || typeof c.badges !== 'object') {
+      c.badges = { bronze: 0, silver: 0, gold: 0 };
+    }
+    // NOTA: ya no se otorgan insignias automáticamente por puntos
+    // Ahora las insignias se otorgan al completar semanas (bronze/silver/gold)
+    // Este sistema antiguo queda desactivado pero mantenemos la firma
+    saveState();
+    return earned;
   }
   function redeem(childId, reward) {
     const c = state.children.find(x => x.id === childId);
@@ -1838,6 +2022,78 @@ const Rewards = (() => {
     saveState(); return true;
   }
   return { checkBadges, redeem, rejectRedemption };
+})();
+
+
+/* ============================================================
+   🏅 MEDALS — Sistema de medallas semanales
+   ============================================================ */
+const Medals = (() => {
+  
+  // Comprobar si una medalla puede subir a otra mejor
+  // bronze < silver < gold
+  function medalRank(medal) {
+    return { bronze: 1, silver: 2, gold: 3 }[medal] || 0;
+  }
+  
+  // Obtener la medalla actual de una semana para un niño
+  function getWeekMedal(child, weekId) {
+    if (!child.weeklyMedals) return null;
+    return child.weeklyMedals.find(m => m.weekId === weekId) || null;
+  }
+  
+  // Otorgar/subir una medalla
+  function awardMedal(child, weekId, medal, perfect) {
+    if (!child.weeklyMedals) child.weeklyMedals = [];
+    if (!child.badges || typeof child.badges !== 'object') {
+      child.badges = { bronze: 0, silver: 0, gold: 0 };
+    }
+    
+    const existing = getWeekMedal(child, weekId);
+    
+    if (!existing) {
+      // Primera vez que se otorga una medalla esta semana
+      child.weeklyMedals.push({
+        weekId: weekId,
+        medal: medal,
+        perfect: !!perfect,
+        completedAt: new Date().toISOString()
+      });
+      child.badges[medal] = (child.badges[medal] || 0) + 1;
+      recalcBadges(child);
+      saveState();
+      return { awarded: true, medal, previous: null };
+    }
+    
+    // Ya existe: comprobar si la nueva es mejor
+    const currentRank = medalRank(existing.medal);
+    const newRank = medalRank(medal);
+    
+    if (newRank > currentRank) {
+      // Subir de medalla: quitar la antigua, poner la nueva
+      child.badges[existing.medal] = Math.max(0, (child.badges[existing.medal] || 0) - 1);
+      child.badges[medal] = (child.badges[medal] || 0) + 1;
+      const previous = existing.medal;
+      existing.medal = medal;
+      existing.perfect = existing.perfect || !!perfect;
+      recalcBadges(child);
+      saveState();
+      return { awarded: true, medal, previous };
+    }
+    
+    // Ya tenía igual o mejor
+    return { awarded: false, medal: existing.medal, previous: null };
+  }
+  
+  // Comprobar si una semana fue perfecta (100% en fases 2, 3 y 4)
+  function isWeekPerfect(phaseResults) {
+    // phaseResults = { 2: true/false, 3: true/false, 4: true/false }
+    // Cada uno indica si esa fase se completó al 100%
+    if (!phaseResults) return false;
+    return phaseResults[2] === true && phaseResults[3] === true && phaseResults[4] === true;
+  }
+  
+  return { getWeekMedal, awardMedal, isWeekPerfect, medalRank };
 })();
 
 /* ============================================================
@@ -1902,7 +2158,8 @@ const Game = (() => {
       phase: session.phase, index: session.index,
       correctCount: session.correctCount, wrongList: session.wrongList,
       order: orderIndexes, phasePoints: session.phasePoints,
-      sessionPoints: session.sessionPoints, completed: false
+      sessionPoints: session.sessionPoints, completed: false,
+      phaseResults: session.phaseResults || {}
     };
     saveState();
   }
@@ -2095,6 +2352,10 @@ const Game = (() => {
       });
     } else review.classList.add('hidden');
 
+    // Guardar si esta fase fue perfecta (100%)
+    if (!session.phaseResults) session.phaseResults = {};
+    session.phaseResults[session.phase] = (pct === 100);
+    
     saveProgress();
 
     if (!passed) {
@@ -2105,6 +2366,18 @@ const Game = (() => {
 
     if (session.phase === 4) {
       const child = state.children.find(c => c.id === session.childId);
+      
+      // 🏅 Otorgar medalla provisional (bronze o silver) ANTES de sumar puntos
+      if (child) {
+        const weekId = getWeekId(new Date());
+        const perfect = Medals.isWeekPerfect(session.phaseResults);
+        const medal = perfect ? 'silver' : 'bronze';
+        const medalResult = Medals.awardMedal(child, weekId, medal, perfect);
+        session.medalAwarded = medalResult.awarded ? medalResult : null;
+        session.medalPerfect = perfect;
+        console.log('🏅 Medalla otorgada:', medalResult);
+      }
+      
       if (child) {
         // Aplicar tope diario del cubo SEMANA (100 pts)
         const result = DailyPoints.add(child, session.sessionPoints, 'week');
@@ -2132,7 +2405,20 @@ const Game = (() => {
 
       setTimeout(() => {
         document.getElementById('week-complete-points').textContent = `+${session.sessionPoints} pts this session`;
-        document.getElementById('week-complete-badges').textContent = (child?.badges || []).join(' ');
+        document.getElementById('week-complete-badges').textContent = formatBadges(child?.badges);
+        // 🏅 Mostrar la medalla otorgada
+        if (session.medalAwarded) {
+          const medalEmoji = { bronze: '🥉', silver: '🥈', gold: '🥇' }[session.medalAwarded.medal];
+          const previousEmoji = session.medalAwarded.previous ? { bronze: '🥉', silver: '🥈', gold: '🥇' }[session.medalAwarded.previous] : null;
+          const msg = previousEmoji 
+            ? `¡Medalla mejorada! ${previousEmoji} → ${medalEmoji}`
+            : `¡Has ganado una medalla! ${medalEmoji}`;
+          setTimeout(() => UI.toast(msg, 'success'), 1000);
+          if (session.medalAwarded.medal === 'silver') {
+            // Confetti extra para plata
+            setTimeout(() => UI.confetti(), 500);
+          }
+        }
         renderWeekRewards(child);
         Audio.win(); UI.confetti();
         UI.show('screen-week-complete');
@@ -2231,7 +2517,7 @@ const Stars = (() => {
       div.innerHTML = `
         <span class="ranking-pos">${posEmoji}</span>
         <span class="ranking-avatar">${c.avatar || '👤'}</span>
-        <span class="ranking-name">${c.name}<br><small style="color:var(--text-soft);font-weight:500;">${(c.badges||[]).join(' ') || ''}</small></span>
+        <span class="ranking-name">${c.name}<br><small style="color:var(--text-soft);font-weight:500;">${formatBadges(c.badges)}</small></span>
         <span class="ranking-points">⭐ ${c.totalPoints || 0}</span>
       `;
       container.appendChild(div);
@@ -2551,11 +2837,14 @@ const MasterGame = (() => {
     
     UI.show('screen-phase-summary');
     
+    // Limpiar la sesión de Master para que no interfiera con Game normal
+    session = null;
+    
     // Cambiar comportamiento del botón Retry para que vuelva a lanzar Master
     const retryBtn = document.getElementById('btn-retry-phase');
     retryBtn.textContent = '🏠 Home';
     retryBtn.onclick = () => {
-      session = null;
+      MasterGame.clear();
       selectedChildId = null;
       renderHome();
       UI.show('screen-home');
@@ -2565,7 +2854,8 @@ const MasterGame = (() => {
   function saveProgress() { /* No persistimos Master entre sesiones */ }
   function getSession() { return session; }
 
-  return { start, playAudio, check, nextWord, getSession };
+  function clear() { session = null; }
+  return { start, playAudio, check, nextWord, getSession, clear };
 })();
 
 const RandomReview = (() => {
@@ -3064,6 +3354,7 @@ const ParentPanel = (() => {
       const totalWeeksChild = getTotalWeeks(c);
       div.innerHTML = `<span>${c.avatar || '👤'} <strong>${c.name}</strong> — ${c.totalPoints||0} pts · ${totalWeeksChild} semanas · ${(c.masterPool||[]).length} palabras pool</span>
                        <div class="item-actions">
+                         <button class="medal-btn" data-medal="${c.id}">➖ Medalla</button>
                          <button class="pts-btn" data-pts="${c.id}">➕ Puntos</button>
                          <button class="reset-btn" data-reset="${c.id}">🔄 Reset</button>
                          <button class="del-btn" data-del="${c.id}">🗑️ Borrar</button>
@@ -3072,6 +3363,7 @@ const ParentPanel = (() => {
     });
 
     list.querySelectorAll('[data-pts]').forEach(b => b.addEventListener('click', () => openAdjustModal(b.dataset.pts)));
+    list.querySelectorAll('[data-medal]').forEach(b => b.addEventListener('click', () => openMedalManager(b.dataset.medal)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
       if (confirm('¿Borrar este niño y su progreso?')) {
         state.children = state.children.filter(c => c.id !== b.dataset.del);
@@ -3186,7 +3478,7 @@ const ParentPanel = (() => {
       info.style.flexDirection = 'column';
       info.style.alignItems = 'flex-start';
       info.innerHTML = `<strong>${c.avatar||'👤'} ${c.name}</strong>
-        <span style="color:var(--text-soft);">Puntos: ${c.totalPoints||0} | Insignias: ${(c.badges||[]).join(' ') || '—'}</span>
+        <span style="color:var(--text-soft);">Puntos: ${c.totalPoints||0} | Insignias: ${formatBadges(c.badges) || '—'}</span>
         <span style="color:var(--text-soft);">Semanas completadas: ${done} | Master Pool: ${pool} palabras | Canjes: ${reds}</span>
         <span style="color:var(--text-soft);">Ajustes manuales: ${adj}</span>`;
       wrap.appendChild(info);
@@ -3251,7 +3543,10 @@ const ParentPanel = (() => {
       const c = state.children.find(x => x.id === childId);
       if (!c) return;
       if (document.getElementById('reset-points').checked) c.totalPoints = 0;
-      if (document.getElementById('reset-badges').checked) c.badges = [];
+      if (document.getElementById('reset-badges').checked) {
+        c.badges = { bronze: 0, silver: 0, gold: 0 };
+        c.weeklyMedals = [];
+      }
       if (document.getElementById('reset-history').checked) c.history = [];
       if (document.getElementById('reset-pool').checked) { c.masterPool = []; c.weeksCompleted = []; }
       if (document.getElementById('reset-redemptions').checked) {
@@ -3361,7 +3656,7 @@ const ParentPanel = (() => {
     const name = document.getElementById('new-child-name').value.trim();
     if (!name) { UI.toast('Escribe un nombre', 'error'); return; }
     if (!selectedAvatar) { UI.toast('Elige un avatar', 'error'); return; }
-    state.children.push({ id: uid(), name, avatar: selectedAvatar, totalPoints: 0, badges: [], history: [], redeemed: [], masterPool: [], weeksCompleted: [] });
+    state.children.push({ id: uid(), name, avatar: selectedAvatar, totalPoints: 0, badges: { bronze: 0, silver: 0, gold: 0 }, weeklyMedals: [], dailyPointsHistory: {}, history: [], redeemed: [], masterPool: [], weeksCompleted: [] });
     saveState();
     document.getElementById('new-child-name').value = '';
     selectedAvatar = null;
@@ -3390,7 +3685,7 @@ const ParentPanel = (() => {
   function resetProgressAll() {
     if (!confirm('¿Resetear el progreso, puntos, insignias e historial de TODOS los niños?')) return;
     state.children.forEach(c => {
-      c.totalPoints = 0; c.badges = []; c.history = []; c.redeemed = [];
+      c.totalPoints = 0; c.badges = { bronze: 0, silver: 0, gold: 0 }; c.weeklyMedals = []; c.history = []; c.redeemed = [];
       c.masterPool = []; c.weeksCompleted = [];
     });
     state.redemptions = [];
@@ -3521,7 +3816,69 @@ const ParentPanel = (() => {
   }
 
 
-  return { open, submitPin, render, saveThreshold, savePoints, addChild, addReward, savePin, resetProgressAll, resetAll, renderAvatarPicker, openAddWeekModal, openAdjustModal };
+  function openMedalManager(childId) {
+    const child = state.children.find(x => x.id === childId);
+    if (!child) return;
+    const medals = (child.weeklyMedals || []).slice().reverse();
+    
+    if (medals.length === 0) {
+      UI.toast('Este niño no tiene medallas todavía', 'error');
+      return;
+    }
+    
+    let html = '<div class="adjust-modal-content">';
+    html += '<h2>🏅 Medallas de ' + child.name + '</h2>';
+    html += '<p style="color:var(--text-soft); margin-bottom:16px;">Pulsa 🗑️ para borrar una medalla concreta.</p>';
+    html += '<div style="max-height:300px; overflow-y:auto;">';
+    
+    medals.forEach((m, idx) => {
+      const emoji = { bronze: '🥉', silver: '🥈', gold: '🥇' }[m.medal] || '🏅';
+      const date = new Date(m.completedAt).toLocaleDateString('es-ES');
+      const realIndex = (child.weeklyMedals.length - 1) - idx;
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#f9fafb; border-radius:12px; margin-bottom:8px;">';
+      html += '<div>';
+      html += '<strong style="font-size:1.1rem;">' + emoji + ' ' + m.weekId + '</strong>';
+      html += '<div style="color:var(--text-soft); font-size:0.85rem;">' + date + (m.perfect ? ' · ⭐ Perfecta' : '') + '</div>';
+      html += '</div>';
+      html += '<button class="btn-danger" style="padding:8px 14px; font-size:0.9rem;" data-del-medal="' + realIndex + '">🗑️</button>';
+      html += '</div>';
+    });
+    
+    html += '</div>';
+    html += '<div class="adjust-modal-actions">';
+    html += '<button class="btn-secondary" id="modal-cancel">Cerrar</button>';
+    html += '</div></div>';
+    
+    UI.modal(html);
+    document.getElementById('modal-cancel').addEventListener('click', () => UI.closeModal());
+    
+    document.querySelectorAll('[data-del-medal]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.delMedal);
+        if (!confirm('¿Borrar esta medalla? No se puede deshacer.')) return;
+        deleteMedal(childId, idx);
+        UI.closeModal();
+        setTimeout(() => openMedalManager(childId), 100);
+      });
+    });
+  }
+  
+  function deleteMedal(childId, index) {
+    const child = state.children.find(x => x.id === childId);
+    if (!child || !child.weeklyMedals || index < 0 || index >= child.weeklyMedals.length) return;
+    child.weeklyMedals.splice(index, 1);
+    const counts = { bronze: 0, silver: 0, gold: 0 };
+    (child.weeklyMedals || []).forEach(m => {
+      if (m && m.medal && counts[m.medal] !== undefined) counts[m.medal]++;
+    });
+    child.badges = counts;
+    saveState();
+    render();
+    renderHome();
+    UI.toast('🗑️ Medalla borrada', 'success');
+  }
+
+  return { open, submitPin, render, saveThreshold, savePoints, addChild, addReward, savePin, resetProgressAll, resetAll, renderAvatarPicker, openAddWeekModal, openAdjustModal, openMedalManager };
 })();
 
 /* ============================================================
@@ -3560,7 +3917,14 @@ function renderHome() {
       <span class="child-avatar">${c.avatar || '👤'}</span>
       <div class="child-name">${c.name}</div>
       <div class="child-points">⭐ ${c.totalPoints || 0}</div>
-      <div class="child-badges">${(c.badges || []).join('')}</div>`;
+      ${(() => {
+        const b = c.badges || {};
+        const parts = [];
+        if (b.bronze > 0) parts.push(`🥉×${b.bronze}`);
+        if (b.silver > 0) parts.push(`🥈×${b.silver}`);
+        if (b.gold > 0) parts.push(`🥇×${b.gold}`);
+        return parts.length > 0 ? `<div class="child-badges">${parts.join(' ')}</div>` : '';
+      })()}`;
     div.addEventListener('click', () => {
       Audio.click();
       selectedChildId = c.id;
@@ -3619,6 +3983,8 @@ function renderHome() {
 /* ============================================================
    🎯 EVENTOS
    ============================================================ */
+let state = loadState();
+
 document.addEventListener('DOMContentLoaded', () => {
   renderHome();
   ParentPanel.renderAvatarPicker();
@@ -3733,8 +4099,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-next-word').addEventListener('click', () => {
     const mg = MasterGame.getSession();
-    if (mg) MasterGame.nextWord();
-    else Game.nextWord();
+    const g = Game.getSession();
+    // Priorizar: si hay sesión de Game activa, usar esa; si no, la de Master
+    if (g) Game.nextWord();
+    else if (mg) MasterGame.nextWord();
   });
   document.getElementById('btn-hear-again').addEventListener('click', () => {
     const w = document.getElementById('feedback-correction').dataset.word;
