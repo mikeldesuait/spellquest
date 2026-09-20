@@ -2149,15 +2149,23 @@ const Champion = (() => {
     
     if (candidates.length === 0) return null;
     
-    // Puntos de cada uno esa semana
-    const scored = candidates.map(c => ({
-      child: c,
-      points: getWeekPoints(c, weekId)
-    }));
+    // Puntos de cada uno esa semana (con fallback a totalPoints si no hay datos diarios)
+    const scored = candidates.map(c => {
+      const weekPts = getWeekPoints(c, weekId);
+      // Fallback: si no hay puntos diarios registrados, usar totalPoints
+      const points = weekPts > 0 ? weekPts : (c.totalPoints || 0);
+      return {
+        child: c,
+        points: points,
+        usedFallback: weekPts === 0
+      };
+    });
     
-    const maxPoints = Math.max(...scored.map(s => s.points));
-    if (maxPoints === 0) {
-      // Nadie jugó realmente. Marcamos como settled pero sin oro
+    // Filtrar los que tienen 0 puntos (no participan)
+    const validScored = scored.filter(s => s.points > 0);
+    
+    if (validScored.length === 0) {
+      // Nadie tiene puntos. Marcamos como settled pero sin oro
       scored.forEach(s => {
         (s.child.weeklyMedals || []).forEach(m => {
           if (m.weekId === weekId) m.settled = true;
@@ -2167,7 +2175,9 @@ const Champion = (() => {
       return null;
     }
     
-    const winners = scored.filter(s => s.points === maxPoints);
+    const maxPoints = Math.max(...validScored.map(s => s.points));
+    
+    const winners = validScored.filter(s => s.points === maxPoints);
     
     // Subir a oro a cada ganador
     winners.forEach(w => {
