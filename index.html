@@ -1159,6 +1159,17 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   </div>
 </section>
 
+<!-- ⚔️ DUEL TURN (pantalla intermedia) -->
+<section id="screen-duel-turn" class="screen">
+  <div class="celebrate-box">
+    <div class="celebrate-icon" style="font-size:5rem;">⚔️</div>
+    <h2 id="duel-turn-title" style="color:var(--primary); font-size:1.8rem; margin:16px 0;">⚔️ Turno de Jugador</h2>
+    <p id="duel-turn-subtitle" style="color:var(--text-soft); font-size:1.2rem; margin:8px 0;">Jugador 1 de 2</p>
+    <p id="duel-turn-info" style="color:var(--text-soft); font-size:1rem; margin:16px 0;">12 palabras. ¡A por todas!</p>
+    <button class="btn-success big" id="btn-duel-turn-start" style="margin-top:24px;">▶ EMPEZAR TURNO</button>
+  </div>
+</section>
+
 <!-- 🔒 PIN -->
 <section id="screen-pin" class="screen">
   <div class="pin-box">
@@ -2874,7 +2885,14 @@ const Master = (() => {
       const selected = shuffled.slice(0, 12);
       return TimeAttack.start(selectedChildId, selected);
     }
-    if (mode === 'duel') return Duel.setup();
+    if (mode === 'duel') {
+      const c = state.children.find(x => x.id === selectedChildId);
+      if (state.children.length < 2) {
+        UI.toast('Necesitas al menos 2 niños', 'error');
+        return;
+      }
+      return Duel.setup();
+    }
   }
   return { menu, startMode, isUnlocked };
 })();
@@ -3375,24 +3393,27 @@ const TimeAttack = (() => {
    ⚔️ DUEL
    ============================================================ */
 const Duel = (() => {
-  let game = null;
-
-  const selectedPlayers = new Set();
+  let session = null;  // { players, words, rounds, currentIndex, results: [{childId, correct, total}], phase }
 
   function setup() {
-    if (state.children.length < 2) { UI.toast('Necesitas al menos 2 niños', 'error'); return; }
-    selectedPlayers.clear();
-    renderPlayers();
+    if (state.children.length < 2) {
+      UI.toast('Necesitas al menos 2 niños', 'error');
+      return;
+    }
+    // Mostrar pantalla de selección
+    renderPlayerSelection();
     UI.show('screen-duel-setup');
   }
 
-  function renderPlayers() {
+  function renderPlayerSelection() {
     const list = document.getElementById('duel-players-list');
+    if (!list) return;
     list.innerHTML = '';
+    
     state.children.forEach(c => {
-      const isSelected = selectedPlayers.has(c.id);
       const div = document.createElement('div');
-      div.className = 'duel-player-card' + (isSelected ? ' selected' : '');
+      div.className = 'duel-player-card';
+      div.dataset.playerId = c.id;
       div.innerHTML = `
         <span class="player-avatar">${c.avatar || '👤'}</span>
         <span class="player-name">${c.name}</span>
@@ -3400,136 +3421,311 @@ const Duel = (() => {
       `;
       div.addEventListener('click', () => {
         Audio.click();
-        if (selectedPlayers.has(c.id)) selectedPlayers.delete(c.id);
-        else selectedPlayers.add(c.id);
-        renderPlayers();
+        div.classList.toggle('selected');
       });
       list.appendChild(div);
     });
   }
 
   function start() {
-    const checked = [...selectedPlayers];
-    if (checked.length < 2) { UI.toast('Elige al menos 2 jugadores', 'error'); return; }
-    const rounds = parseInt(document.getElementById('duel-rounds').value) || 12;
-
-    // Cogemos el pool más pequeño de los jugadores
-    const players = checked.map(id => {
+    // Coger jugadores seleccionados
+    const selected = Array.from(document.querySelectorAll('.duel-player-card.selected'))
+      .map(el => el.dataset.playerId);
+    
+    if (selected.length < 2) {
+      UI.toast('Elige al menos 2 jugadores', 'error');
+      return;
+    }
+    
+    // Validar que todos tienen 12+ palabras
+    const invalid = selected.filter(id => {
       const c = state.children.find(x => x.id === id);
-      return { id, name: c.name, avatar: c.avatar, masterPool: c.masterPool || [], score: 0 };
+      return !c || !c.masterPool || c.masterPool.length < 12;
     });
-    const smallestPool = players.reduce((min, p) => p.masterPool.length < min.length ? p.masterPool : min, players[0].masterPool);
-    if (smallestPool.length === 0) { UI.toast('Algún jugador no tiene palabras en su pool', 'error'); return; }
-
-    const parsed = Words.parse(smallestPool.join('\n'));
-    const words = shuffle([...parsed]).slice(0, rounds);
-
-    game = {
-      players,
-      words,
-      rounds: words.length,
-      currentRound: 0,
-      currentTurnIndex: 0,
-      scores: players.map(() => 0),
-      mode: 'copy' // Por defecto
+    
+    if (invalid.length > 0) {
+      const names = invalid.map(id => state.children.find(x => x.id === id)?.name).join(', ');
+      UI.toast(`Estos jugadores no tienen 12+ palabras: ${names}`, 'error');
+      return;
+    }
+    
+    // Rondas
+    const roundsInput = document.getElementById('duel-rounds');
+    const rounds = Math.min(12, Math.max(4, parseInt(roundsInput?.value) || 12));
+    
+    // Coger 12 palabras del primer jugador
+    const firstChild = state.children.find(x => x.id === selected[0]);
+    const pool = firstChild.masterPool || [];
+    const words = [...pool].sort(() => Math.random() - 0.5).slice(0, rounds);
+    
+    // Crear sesión
+    session = {
+      players: selected.map(id => state.children.find(x => x.id === id)),
+      words: words,
+      rounds: rounds,
+      currentPlayerIndex: 0,
+      currentWordIndex: 0,
+      correctCount: 0,
+      wrongList: [],
+      results: []
     };
+    
+    // Empezar turno del primer jugador
+    showTurnTransition();
+  }
 
-    // Mostrar solo 2 jugadores en cabecera (simplificación)
-    document.getElementById('duel-p1-avatar').textContent = players[0].avatar;
-    document.getElementById('duel-p1-name').textContent = players[0].name;
-    document.getElementById('duel-p2-avatar').textContent = players[1].avatar;
-    document.getElementById('duel-p2-name').textContent = players[1].name;
-    document.getElementById('duel-p1-score').textContent = '0';
-    document.getElementById('duel-p2-score').textContent = '0';
+  function showTurnTransition() {
+    const player = session.players[session.currentPlayerIndex];
+    const turnNum = session.currentPlayerIndex + 1;
+    const totalTurns = session.players.length;
+    
+    // Modal / pantalla intermedia
+    document.getElementById('duel-turn-title').textContent = `⚔️ Turno de ${player.avatar} ${player.name}`;
+    document.getElementById('duel-turn-subtitle').textContent = `Jugador ${turnNum} de ${totalTurns}`;
+    document.getElementById('duel-turn-info').textContent = `${session.rounds} palabras. ¡A por todas!`;
+    
+    UI.show('screen-duel-turn');
+  }
 
-    renderTurn();
+  function startTurn() {
+    session.currentWordIndex = 0;
+    session.correctCount = 0;
+    session.wrongList = [];
+    
+    // 🔧 Parsear las palabras a objetos {alts, display}
+    const parsed = Words.parse(session.words.join('\n'));
+    
+    // Barajar las palabras parseadas para este jugador
+    session.currentOrder = [...parsed].sort(() => Math.random() - 0.5);
+    
+    console.log('🎮 Duel turn iniciado:', session.currentOrder.length, 'palabras');
+    console.log('Primera palabra:', session.currentOrder[0]);
+    
+    renderWord();
     UI.show('screen-duel-game');
   }
 
-  function renderTurn() {
-    if (!game) return;
-    if (game.currentRound >= game.rounds) return end();
-    const word = game.words[game.currentRound];
-    const player = game.players[game.currentTurnIndex];
-    document.getElementById('duel-round-text').textContent = `${game.currentRound+1} / ${game.rounds}`;
-    document.getElementById('duel-turn').textContent = `Turn: ${player.avatar} ${player.name}`;
-    document.getElementById('duel-instruction').textContent = '📝 Copy this word:';
-    document.getElementById('duel-word-text').textContent = word.display;
-    document.getElementById('duel-word-display').classList.remove('audio-mode');
-    document.getElementById('btn-duel-audio').classList.remove('hidden');
-    document.getElementById('duel-answer-input').value = '';
-    document.getElementById('duel-answer-input').disabled = false;
-    setTimeout(()=>document.getElementById('duel-answer-input').focus(), 100);
+  function renderWord() {
+    const wordObj = session.currentOrder[session.currentWordIndex];
+    if (!wordObj) { endTurn(); return; }
+    const total = session.currentOrder.length;
+    
+    document.getElementById('duel-round-text').textContent = `${session.currentWordIndex+1} / ${total}`;
+    
+    // Actualizar marcador
+    const player = session.players[session.currentPlayerIndex];
+    document.getElementById('duel-turn').textContent = `${player.avatar} ${player.name}`;
+    document.getElementById('duel-instruction').textContent = '🎧 Listen and write:';
+    
+    // Mostrar ****
+    document.getElementById('duel-word-text').textContent = '*****';
+    document.getElementById('duel-word-display').classList.add('audio-mode');
+    
+    const input = document.getElementById('duel-answer-input');
+    input.value = '';
+    input.disabled = false;
+    setTimeout(() => input.focus(), 100);
+    document.getElementById('btn-duel-check').disabled = false;
+    
+    // Reproducir audio
+    setTimeout(() => Speech.say(wordObj.alts.join('/'), 1.0), 400);
   }
 
-  function playAudio() {
-    if (!game) return;
-    const word = game.words[game.currentRound];
-    Audio.click(); Speech.say(word.alts.join('/'));
+  function playAudio(rate) {
+    const wordObj = session.currentOrder[session.currentWordIndex];
+    if (!wordObj) return;
+    Audio.click();
+    Speech.say(wordObj.alts.join('/'), rate || 1.0);
   }
 
   let isChecking = false;
   function check() {
-    if (isChecking || !game) return;
-    isChecking = true;
-    const input = document.getElementById('duel-answer-input');
-    input.disabled = true;
-    const word = game.words[game.currentRound];
-    const result = Words.evaluate(input.value.trim(), word);
-    if (result.correct) { game.scores[game.currentTurnIndex]++; Audio.correct(); }
-    else Audio.wrong();
-    updateScores();
-    setTimeout(() => {
+    if (isChecking) return;
+    if (!session || !session.currentOrder || session.currentWordIndex >= session.currentOrder.length) {
       isChecking = false;
-      game.currentTurnIndex++;
-      if (game.currentTurnIndex >= game.players.length) {
-        game.currentTurnIndex = 0;
-        game.currentRound++;
-      }
-      if (game.currentRound >= game.rounds) end();
-      else renderTurn();
-    }, 500);
-  }
-
-  function updateScores() {
-    if (!game) return;
-    document.getElementById('duel-p1-score').textContent = game.scores[0] || 0;
-    document.getElementById('duel-p2-score').textContent = game.scores[1] || 0;
-  }
-
-  function end() {
-    if (!game) return;
-    const maxScore = Math.max(...game.scores);
-    const winners = game.players.filter((p, i) => game.scores[i] === maxScore);
-    const scoreStr = game.scores.join(' - ');
-    document.getElementById('duel-result-score').textContent = scoreStr;
-    if (winners.length === 1) {
-      document.getElementById('duel-result-icon').textContent = '🏆';
-      document.getElementById('duel-result-title').textContent = `WINNER: ${winners[0].avatar} ${winners[0].name}!`;
-    } else {
-      document.getElementById('duel-result-icon').textContent = '🤝';
-      document.getElementById('duel-result-title').textContent = '¡EMPATE!';
+      return;
     }
-    // Sumar puntos
-    const pointsBox = document.getElementById('duel-result-points');
-    pointsBox.innerHTML = '<h3 style="color:var(--primary); margin-bottom:12px;">Points earned:</h3>';
-    game.players.forEach((p, i) => {
-      // ⚠️ El Duel NO da puntos directos (solo cuenta para el "Campeón del día" en Parche 2)
-      const div = document.createElement('div');
-      div.style.marginBottom = '8px';
-      div.style.fontSize = '1.2rem';
-      div.innerHTML = `${p.avatar} <strong>${p.name}</strong>: ${game.scores[i]} aciertos`;
-      pointsBox.appendChild(div);
+    
+    const wordObj = session.currentOrder[session.currentWordIndex];
+    if (!wordObj) { isChecking = false; return; }
+    
+    isChecking = true;
+    
+    try {
+      const input = document.getElementById('duel-answer-input');
+      const checkBtn = document.getElementById('btn-duel-check');
+      if (input) input.disabled = true;
+      if (checkBtn) checkBtn.disabled = true;
+      
+      const userAnswer = input ? input.value.trim() : '';
+      const result = Words.evaluate(userAnswer, wordObj);
+      
+      if (result.correct) {
+        session.correctCount++;
+        Audio.correct(); UI.confetti();
+      } else {
+        session.wrongList.push({ word: wordObj.display, yours: userAnswer });
+        Audio.wrong();
+      }
+      
+      // Avanzar
+      session.currentWordIndex++;
+      
+      if (session.currentWordIndex >= session.currentOrder.length) {
+        setTimeout(() => endTurn(), 300);
+      } else {
+        isChecking = false;
+        setTimeout(() => {
+          renderWord();
+        }, 400);
+      }
+    } catch(e) {
+      console.error('Error en Duel.check:', e);
+      isChecking = false;
+    }
+  }
+
+  function endTurn() {
+    isChecking = false;
+    const player = session.players[session.currentPlayerIndex];
+    const correct = session.correctCount;
+    const total = session.currentOrder.length;
+    const pct = Math.round(correct / total * 100);
+    
+    // Guardar resultado
+    session.results.push({
+      childId: player.id,
+      name: player.name,
+      avatar: player.avatar,
+      correct: correct,
+      total: total,
+      pct: pct
     });
+    
+    // Siguiente jugador o fin
+    session.currentPlayerIndex++;
+    if (session.currentPlayerIndex >= session.players.length) {
+      // Fin del Duel
+      finishDuel();
+    } else {
+      // Siguiente turno
+      showTurnTransition();
+    }
+  }
+
+  function finishDuel() {
+    const threshold = state.settings.threshold || 80;
+    const results = session.results;
+    
+    // Encontrar máximo de aciertos
+    const maxCorrect = Math.max(...results.map(r => r.correct));
+    const winners = results.filter(r => r.correct === maxCorrect);
+    const isTie = winners.length > 1;
+    
+    // Calcular puntos para cada uno
+    results.forEach(r => {
+      let pts = 0;
+      const isWinner = winners.some(w => w.childId === r.childId);
+      
+      if (r.pct < threshold) {
+        pts = 0;
+      } else if (isWinner) {
+        // Ganador
+        pts = r.pct === 100 ? 5 : 3;
+      } else {
+        // Perdedor
+        pts = 2;
+      }
+      
+      // En empate, todos cobran como ganadores
+      if (isTie && isWinner) {
+        pts = r.pct === 100 ? 5 : 2;  // En empate: +5 si 100%, +2 si no
+      }
+      
+      r.points = pts;
+      
+      // Aplicar al niño
+      const child = state.children.find(c => c.id === r.childId);
+      if (child && pts > 0) {
+        const res = DailyPoints.add(child, pts, 'master');
+        r.pointsActual = res.actual;
+        r.capped = res.capped;
+        
+        if (!child.history) child.history = [];
+        child.history.push({
+          type: 'duel',
+          date: new Date().toISOString(),
+          points: res.actual,
+          correct: r.correct,
+          total: r.total,
+          pct: r.pct,
+          result: isWinner ? (isTie ? 'tie' : 'win') : 'loss'
+        });
+      } else {
+        r.pointsActual = 0;
+      }
+    });
+    
     saveState();
-    game.players.forEach(p => Rewards.checkBadges(p.id));
-    Audio.win(); UI.confetti();
+    results.forEach(r => {
+      const child = state.children.find(c => c.id === r.childId);
+      if (child) Rewards.checkBadges(child.id);
+    });
+    
+    // Mostrar pantalla final
+    renderFinalResults(results, winners, isTie);
     UI.show('screen-duel-result');
   }
 
-  function shuffle(arr) { for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+  function renderFinalResults(results, winners, isTie) {
+    const icon = document.getElementById('duel-result-icon');
+    const title = document.getElementById('duel-result-title');
+    const scoreBox = document.getElementById('duel-result-score');
+    const pointsBox = document.getElementById('duel-result-points');
+    
+    if (isTie) {
+      icon.textContent = '🤝';
+      title.textContent = '¡EMPATE!';
+    } else {
+      icon.textContent = '🏆';
+      title.textContent = `¡GANA ${winners[0].avatar} ${winners[0].name}!`;
+    }
+    
+    // Puntuaciones
+    scoreBox.innerHTML = results.map(r => 
+      `<div>${r.avatar} ${r.name}: ${r.correct}/${r.total} (${r.pct}%)</div>`
+    ).join('');
+    
+    // Puntos
+    pointsBox.innerHTML = '<h3 style="color:var(--primary); margin-bottom:12px;">Puntos ganados:</h3>' +
+      results.map(r => {
+        let text = `${r.avatar} <strong>${r.name}</strong>: `;
+        if (r.pointsActual > 0) {
+          text += `+${r.pointsActual} pts`;
+          if (r.capped) text += ' (capped)';
+        } else if (r.points === 0) {
+          text += '0 pts (below threshold)';
+        } else {
+          text += '0 pts';
+        }
+        return `<div style="margin-bottom:8px; font-size:1.1rem;">${text}</div>`;
+      }).join('');
+    
+    Audio.win();
+    UI.confetti();
+  }
 
-  return { setup, start, check, playAudio };
+  function playAgain() {
+    if (!session) return;
+    // Volver a la pantalla de selección
+    renderPlayerSelection();
+    UI.show('screen-duel-setup');
+  }
+
+  function getSession() { return session; }
+  function clear() { session = null; isChecking = false; }
+
+  return { setup, start, playAudio, check, playAgain, getSession, clear, startTurn };
 })();
 
 /* ============================================================
@@ -4457,6 +4653,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Duel
   document.getElementById('btn-duel-start').addEventListener('click', () => Duel.start());
   document.getElementById('btn-duel-check').addEventListener('click', () => Duel.check());
+  document.getElementById('btn-duel-turn-start').addEventListener('click', () => { Audio.click(); Duel.startTurn(); });
+  document.getElementById('btn-duel-audio').addEventListener('click', () => Duel.playAudio(1.0));
+  document.getElementById('duel-answer-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') Duel.check();
+  });
+  document.getElementById('btn-duel-home').addEventListener('click', () => {
+    Duel.clear();
+    selectedChildId = null;
+    renderHome();
+    UI.show('screen-home');
+  });
+  // Listen again / Slowly en Duel (reutilizan los mismos botones)
+  document.getElementById('btn-listen-normal').addEventListener('click', () => {
+    if (Duel.getSession()) Duel.playAudio(1.0);
+  });
+  document.getElementById('btn-listen-slow').addEventListener('click', () => {
+    if (Duel.getSession()) Duel.playAudio(0.3);
+  });
   // (listeners del Duel antiguo eliminados)
 
   // Parent
