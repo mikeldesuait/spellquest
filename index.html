@@ -1057,6 +1057,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <span id="game-progress-text">1 / 12</span>
   </header>
   <div class="progress-bar"><div id="game-progress-fill" class="progress-fill"></div></div>
+  <div id="time-attack-timer" class="hidden" style="text-align:center; font-size:2rem; font-weight:700; color:var(--primary); margin:12px 0;">⏱️ 0:00</div>
   <div class="game-body">
     <p id="game-instruction" class="subtitle">📝 Copy this word:</p>
     <div id="word-display" class="word-display">
@@ -1586,18 +1587,53 @@ function getActiveWeek() {
 }
 
 
-// 📅 Semanas ISO — devuelve algo como "2025-W39"
+// 📅 Semanas escolares: viernes a jueves
+// Devuelve la fecha del viernes de inicio del ciclo actual
+// Ejemplo: si hoy es sábado 20/09/2026 → devuelve "2026-09-19"
 function getWeekId(date) {
-  const d = new Date(date);
+  const d = new Date(date || new Date());
   if (isNaN(d.getTime())) return null;
-  // Algoritmo ISO 8601
-  const target = new Date(d.valueOf());
-  const dayNr = (d.getDay() + 6) % 7;  // lunes=0, domingo=6
-  target.setDate(target.getDate() - dayNr + 3);  // jueves de la semana
-  const firstThursday = new Date(target.getFullYear(), 0, 4);
-  const diff = target - firstThursday;
-  const weekNumber = 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
-  return `${target.getFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+  
+  // getDay(): 0=domingo, 1=lunes, ..., 5=viernes, 6=sábado
+  const dayOfWeek = d.getDay();
+  
+  // Calcular cuántos días retroceder hasta el viernes más cercano hacia atrás
+  // viernes=5 → 0 días
+  // sábado=6 → 1 día
+  // domingo=0 → 2 días
+  // lunes=1 → 3 días
+  // martes=2 → 4 días
+  // miércoles=3 → 5 días
+  // jueves=4 → 6 días
+  const daysToSubtract = (dayOfWeek + 2) % 7;
+  
+  d.setDate(d.getDate() - daysToSubtract);
+  d.setHours(0, 0, 0, 0);
+  
+  // Devolver en formato YYYY-MM-DD
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// 📅 Obtener el viernes de inicio de la semana ANTERIOR
+function getPreviousWeekId() {
+  const d = new Date();
+  // Retroceder 7 días desde hoy y calcular el viernes
+  d.setDate(d.getDate() - 7);
+  return getWeekId(d);
+}
+
+// 📅 Obtener el nombre legible de una semana
+function getWeekLabel(weekId) {
+  if (!weekId) return '';
+  const d = new Date(weekId + 'T00:00:00');
+  if (isNaN(d.getTime())) return weekId;
+  const end = new Date(d);
+  end.setDate(end.getDate() + 6);  // jueves siguiente
+  const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  return `${d.getDate()} ${monthNames[d.getMonth()]} → ${end.getDate()} ${monthNames[end.getMonth()]}`;
 }
 
 
@@ -1678,14 +1714,7 @@ function getWeekWinners(weekId) {
   return scored.filter(s => s.points === maxPoints).map(s => s.id);
 }
 
-// 📅 Obtener el weekId de la semana cerrada (la anterior a la actual)
-function getClosedWeekId() {
-  const today = new Date();
-  // Retroceder 7 días para estar seguro de caer en la semana anterior
-  const lastWeek = new Date(today);
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  return getWeekId(lastWeek);
-}
+
 
 
 // 🎯 Comprobar el estado de la semana actual para un niño
@@ -1944,9 +1973,18 @@ const Words = (() => {
 /* ============================================================
    💰 DAILY POINTS — Cubos diarios con topes
    ============================================================ */
+
+// 📊 Topes semanales (constantes)
+const WEEKLY_LIMITS = {
+  weekPerDay: 50,      // 50 × 7 = 350/semana
+  masterPerDay: 20,    // 20 × 7 = 140/semana
+  championBonus: 10,   // +10 pts al campeón semanal
+  total: 500           // 350 + 140 + 10 = 500 pts/semana
+};
+
 const DailyPoints = (() => {
-  const LIMITS = { week: 100, master: 50 };
-  const DUEL_BONUS = 10;
+  const LIMITS = { week: 50, master: 20 };  // 50×7 + 20×7 + 10 bonus campeón = 500/semana
+  const CHAMPION_BONUS = 10;  // Bonus para el campeón de la semana
 
   function today() {
     return new Date().toISOString().slice(0,10);
@@ -1993,7 +2031,7 @@ const DailyPoints = (() => {
     return { actual, capped: actual < earned, remaining: max - child.dailyPoints[bucket] };
   }
 
-  return { resetDailyIfNeeded, getBucket, getRemaining, isCapped, add, LIMITS, DUEL_BONUS, today };
+  return { resetDailyIfNeeded, getBucket, getRemaining, isCapped, add, LIMITS, CHAMPION_BONUS, today };
 })();
 
 const Rewards = (() => {
@@ -2369,6 +2407,8 @@ const Game = (() => {
     document.getElementById('game-progress-text').textContent = `${session.index+1} / ${total}`;
     document.getElementById('game-progress-fill').style.width = ((session.index) / total * 100) + '%';
     document.getElementById('game-instruction').textContent = p.inst;
+    const timerEl = document.getElementById('time-attack-timer');
+    if (timerEl) timerEl.classList.add('hidden');
 
     const wordText = document.getElementById('word-text');
     const wordDisplay = document.getElementById('word-display');
@@ -2816,7 +2856,24 @@ const Master = (() => {
   }
   function startMode(mode) {
     if (mode === 'random') return RandomReview.start(selectedChildId);
-    if (mode === 'time') return TimeAttack.setup(selectedChildId);
+    if (mode === 'time') {
+      const c = state.children.find(x => x.id === selectedChildId);
+      const pool = (c && c.masterPool) || [];
+      if (pool.length < 12) {
+        UI.toast('Necesitas al menos 12 palabras en tu colección 📚', 'error');
+        return;
+      }
+      // Comprobar tope Master
+      DailyPoints.resetDailyIfNeeded(c);
+      if (DailyPoints.isCapped(c, 'master')) {
+        UI.toast('🌙 Has alcanzado el máximo Master de hoy. ¡Vuelve mañana!', 'error');
+        return;
+      }
+      // 12 palabras aleatorias
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, 12);
+      return TimeAttack.start(selectedChildId, selected);
+    }
     if (mode === 'duel') return Duel.setup();
   }
   return { menu, startMode, isUnlocked };
@@ -2862,6 +2919,8 @@ const MasterGame = (() => {
     document.getElementById('game-progress-text').textContent = `${session.index+1} / ${total}`;
     document.getElementById('game-progress-fill').style.width = ((session.index) / total * 100) + '%';
     document.getElementById('game-instruction').textContent = '🎧 Listen and write:';
+    const timerEl = document.getElementById('time-attack-timer');
+    if (timerEl) timerEl.classList.add('hidden');
     
     const wordText = document.getElementById('word-text');
     const wordDisplay = document.getElementById('word-display');
@@ -2967,14 +3026,15 @@ const MasterGame = (() => {
     const total = session.order.length;
     const correct = session.correctCount;
     const pct = Math.round(correct / total * 100);
+    const threshold = state.settings.threshold || 80;
     
-    // Puntos: 1 por palabra + 5 bonus si ≥80% aciertos
-    const basePts = correct;
-    const pctThreshold = 80;
-    const bonus = pct >= pctThreshold ? 5 : 0;
-    const earned = basePts + bonus;
+    // 🏆 NUEVA REGLA v3.0: puntos fijos según resultado
+    let earned = 0;
+    if (pct === 100) earned = 5;
+    else if (pct >= threshold) earned = 2;
+    else earned = 0;
     
-    // Aplicar tope diario del cubo Master
+    // Aplicar tope diario del cubo Master (20 pts/día)
     const child = state.children.find(c => c.id === session.childId);
     let actualEarned = earned;
     let capped = false;
@@ -3003,12 +3063,21 @@ const MasterGame = (() => {
     document.getElementById('summary-title').textContent = '🏆 Master Mode Complete!';
     document.getElementById('summary-correct').textContent = `${correct} / ${total}`;
     document.getElementById('summary-accuracy').textContent = pct + '%';
-    document.getElementById('summary-points').textContent = '+' + actualEarned + (capped ? ' (capped at daily limit)' : '') + (bonus > 0 ? ` (bonus +${bonus})` : '');
+    
+    let pointsText = '+' + actualEarned;
+    if (capped) pointsText += ' (capped)';
+    if (earned === 5) pointsText += ' 🌟 PERFECT!';
+    else if (earned === 2) pointsText += ' (above threshold)';
+    else pointsText += ' (below threshold)';
+    document.getElementById('summary-points').textContent = pointsText;
+    
     document.getElementById('summary-time').textContent = `${Math.floor((Date.now()-session.startTime)/60000)}m ${Math.floor(((Date.now()-session.startTime)/1000)%60)}s`;
     
     const status = document.getElementById('summary-status');
-    status.textContent = pct >= pctThreshold ? '✅ EXCELLENT!' : '💪 Keep practicing!';
-    status.className = 'summary-status ' + (pct >= pctThreshold ? 'passed' : 'failed');
+    if (pct === 100) status.textContent = '🌟 PERFECT!';
+    else if (pct >= threshold) status.textContent = '✅ GREAT!';
+    else status.textContent = '💪 Try again!';
+    status.className = 'summary-status ' + (pct >= threshold ? 'passed' : 'failed');
     
     const review = document.getElementById('summary-review');
     const reviewList = document.getElementById('summary-review-list');
@@ -3022,15 +3091,12 @@ const MasterGame = (() => {
       });
     } else review.classList.add('hidden');
     
-    // Ocultar "NEXT PHASE" y mostrar "RETRY" + "HOME"
     document.getElementById('btn-next-phase').style.display = 'none';
     
     UI.show('screen-phase-summary');
     
-    // Limpiar la sesión de Master para que no interfiera con Game normal
     session = null;
     
-    // Cambiar comportamiento del botón Retry para que vuelva a lanzar Master
     const retryBtn = document.getElementById('btn-retry-phase');
     retryBtn.textContent = '🏠 Home';
     retryBtn.onclick = () => {
@@ -3077,114 +3143,232 @@ const RandomReview = (() => {
    ⏱️ TIME ATTACK
    ============================================================ */
 const TimeAttack = (() => {
-  let timer = null;
-  let game = null;
-  const DURATION = 60;
+  let session = null;
+  let timerInterval = null;
 
-  function setup(childId) {
-    UI.show('screen-time-setup');
-    // Guardamos childId para el click
-    document.querySelectorAll('[data-time-mode]').forEach(b => {
-      b.onclick = () => start(childId, b.dataset.timeMode);
-    });
-  }
-
-  function start(childId, mode) {
-    const c = state.children.find(x => x.id === childId);
-    const pool = c.masterPool || [];
-    if (pool.length === 0) { UI.toast('No words in pool', 'error'); return; }
-    const parsed = Words.parse(pool.join('\n'));
-    if (parsed.length === 0) { UI.toast('No valid words', 'error'); return; }
-
-    game = {
-      childId, mode, score: 0, best: 0, remaining: DURATION,
-      queue: shuffle([...parsed]), current: null,
-      startTime: Date.now()
+  function start(childId, words) {
+    // Validar palabras
+    const parsed = Words.parse(words.join('\n'));
+    if (parsed.length < 12) {
+      UI.toast('Necesitas al menos 12 palabras', 'error');
+      return;
+    }
+    
+    // Coger 12 aleatorias
+    const shuffled = [...parsed].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, 12);
+    
+    session = {
+      childId,
+      order: selected,
+      index: 0,
+      correctCount: 0,
+      wrongList: [],
+      startTime: Date.now(),
+      finished: false
     };
-    nextWord();
-    UI.show('screen-time-game');
-    document.getElementById('time-score-display').textContent = 'Score: 0';
-    document.getElementById('time-counter').textContent = DURATION;
-    clearInterval(timer);
-    timer = setInterval(() => {
-      game.remaining--;
-      document.getElementById('time-counter').textContent = Math.max(0, game.remaining);
-      if (game.remaining <= 0) end();
-    }, 1000);
+    
+    renderWord();
+    startTimer();
+    UI.show('screen-game');
   }
 
-  function nextWord() {
-    if (!game) return;
-    if (game.queue.length === 0) game.queue = shuffle([...Words.parse((state.children.find(x=>x.id===game.childId).masterPool||[]).join('\n'))]);
-    game.current = game.queue.shift();
-    const wordText = document.getElementById('time-word-text');
-    const wordDisplay = document.getElementById('time-word-display');
-    const audioBtn = document.getElementById('btn-time-audio');
-    const input = document.getElementById('time-answer-input');
+  function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    const el = document.getElementById('time-attack-timer');
+    if (!el) return;
+    const update = () => {
+      if (!session || session.finished) return;
+      const elapsed = Math.floor((Date.now() - session.startTime) / 1000);
+      const min = Math.floor(elapsed / 60);
+      const sec = elapsed % 60;
+      el.textContent = `⏱️ ${min}:${String(sec).padStart(2, '0')}`;
+    };
+    update();
+    timerInterval = setInterval(update, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  }
+
+  function renderWord() {
+    const wordObj = session.order[session.index];
+    if (!wordObj) { endPhase(); return; }
+    const total = session.order.length;
+    
+    document.getElementById('game-phase-title').textContent = '⏱️ Time Attack';
+    document.getElementById('game-progress-text').textContent = `${session.index+1} / ${total}`;
+    document.getElementById('game-progress-fill').style.width = ((session.index) / total * 100) + '%';
+    document.getElementById('game-instruction').textContent = '🎧 Listen and write:';
+    const timerEl = document.getElementById('time-attack-timer');
+    if (timerEl) timerEl.classList.remove('hidden');
+    
+    const wordText = document.getElementById('word-text');
+    const wordDisplay = document.getElementById('word-display');
+    const input = document.getElementById('answer-input');
+    
     input.value = ''; input.disabled = false;
-    setTimeout(()=>input.focus(), 100);
-    wordDisplay.classList.remove('audio-mode');
-    if (game.mode === 'copy') {
-      document.getElementById('time-instruction').textContent = '📝 Copy this word:';
-      wordText.textContent = game.current.display;
-          } else if (game.mode === 'listen-write') {
-      document.getElementById('time-instruction').textContent = '🎧 Listen and write:';
-      wordText.textContent = '*****';
-      wordDisplay.classList.add('audio-mode');
-            setTimeout(()=>Speech.say(game.current.alts.join('/')), 300);
-    } else {
-      document.getElementById('time-instruction').textContent = '🔊 Listen only:';
-      wordText.textContent = '*****';
-      wordDisplay.classList.add('audio-mode');
-            setTimeout(()=>Speech.say(game.current.alts.join('/')), 300);
-    }
+    document.getElementById('btn-check').disabled = false;
+    setTimeout(() => input.focus(), 100);
+    
+    wordText.textContent = '*****';
+    wordDisplay.classList.add('audio-mode');
+    setTimeout(() => Speech.say(wordObj.alts.join('/'), 1.0), 300);
   }
 
+  function playAudio(rate) {
+    const wordObj = session.order[session.index];
+    if (!wordObj) return;
+    Audio.click();
+    Speech.say(wordObj.alts.join('/'), rate || 1.0);
+  }
+
+  let isChecking = false;
   function check() {
-    if (!game || !game.current) return;
-    const input = document.getElementById('time-answer-input');
-    input.disabled = true;
-    const result = Words.evaluate(input.value.trim(), game.current);
-    if (result.correct) {
-      game.score++;
-      Audio.correct();
-      document.getElementById('time-score-display').textContent = 'Score: ' + game.score;
-    } else {
-      Audio.wrong();
+    if (isChecking) return;
+    if (!session || !session.order || session.index >= session.order.length) {
+      console.warn('⚠️ TimeAttack.check: sesión inválida');
+      isChecking = false;
+      return;
     }
-    setTimeout(() => {
-      if (game.remaining > 0) nextWord();
-    }, 250);
+    isChecking = true;
+    
+    try {
+      const input = document.getElementById('answer-input');
+      const checkBtn = document.getElementById('btn-check');
+      if (input) input.disabled = true;
+      if (checkBtn) checkBtn.disabled = true;
+      
+      const userAnswer = input ? input.value.trim() : '';
+      const wordObj = session.order[session.index];
+      if (!wordObj) { isChecking = false; return; }
+      
+      const result = Words.evaluate(userAnswer, wordObj);
+      
+      if (result.correct) {
+        session.correctCount++;
+        Audio.correct(); UI.confetti();
+      } else {
+        session.wrongList.push({ word: wordObj.display, yours: userAnswer });
+        Audio.wrong();
+      }
+      
+      // Avanzar
+      session.index++;
+      if (session.index >= session.order.length) {
+        stopTimer();
+        endPhase();
+      } else {
+        isChecking = false;
+        renderWord();
+      }
+    } catch(e) {
+      console.error('Error en TimeAttack.check:', e);
+      isChecking = false;
+    }
   }
 
-  function playAudio() { if (game && game.current) { Audio.click(); Speech.say(game.current.alts.join('/')); } }
-
-  function end() {
-    clearInterval(timer);
-    const child = state.children.find(c => c.id === game.childId);
-    const pts = 0; // ⚠️ Time Attack NO da puntos (solo diversión)
+  function endPhase() {
+    if (!session || session.finished) return;
+    session.finished = true;
+    stopTimer();
+    
+    const total = 12;
+    const correct = session.correctCount;
+    const pct = Math.round(correct / total * 100);
+    const elapsed = Math.floor((Date.now() - session.startTime) / 1000);
+    const min = Math.floor(elapsed / 60);
+    const sec = elapsed % 60;
+    const threshold = state.settings.threshold || 80;
+    const under3Min = elapsed < 180;
+    
+    // 🏆 Reglas Time Attack v3.0
+    let earned = 0;
+    if (pct === 100 && under3Min) earned = 5;
+    else if (pct === 100 && !under3Min) earned = 3;
+    else if (pct >= threshold) earned = 2;
+    else earned = 0;
+    
+    // Aplicar tope cubo Master
+    const child = state.children.find(c => c.id === session.childId);
+    let actualEarned = earned;
+    let capped = false;
     if (child) {
-      if (!child.bestTimeAttack) child.bestTimeAttack = 0;
-      if (game.score > child.bestTimeAttack) child.bestTimeAttack = game.score;
+      const result = DailyPoints.add(child, earned, 'master');
+      actualEarned = result.actual;
+      capped = result.capped;
+      
+      if (!child.history) child.history = [];
+      child.history.push({
+        type: 'time-attack',
+        date: new Date().toISOString(),
+        points: actualEarned,
+        correct: correct,
+        total: total,
+        pct: pct,
+        time: elapsed
+      });
     }
     saveState();
-    Rewards.checkBadges(game.childId);
-    document.getElementById('time-result-score').textContent = `${game.score} words`;
-    document.getElementById('time-result-points').textContent = `+${pts} points`;
-    const best = child.bestTimeAttack || 0;
-    document.getElementById('time-result-best').textContent = game.score >= best ? '🏅 New personal best!' : `Personal best: ${best}`;
-    Audio.win(); UI.confetti();
-    UI.show('screen-time-result');
+    if (child) Rewards.checkBadges(child.id);
+    
+    // Mostrar resumen
+    document.getElementById('summary-title').textContent = '⏱️ Time Attack Complete!';
+    document.getElementById('summary-correct').textContent = `${correct} / ${total}`;
+    document.getElementById('summary-accuracy').textContent = pct + '%';
+    document.getElementById('summary-time').textContent = `${min}m ${sec}s`;
+    
+    let pointsText = '+' + actualEarned;
+    if (capped) pointsText += ' (capped)';
+    if (earned === 5) pointsText += ' 🌟 PERFECT & FAST!';
+    else if (earned === 3) pointsText += ' 🌟 PERFECT';
+    else if (earned === 2) pointsText += ' (above threshold)';
+    else pointsText += ' (below threshold)';
+    document.getElementById('summary-points').textContent = pointsText;
+    
+    const status = document.getElementById('summary-status');
+    if (pct === 100 && under3Min) status.textContent = '🌟 EXCELLENT & FAST!';
+    else if (pct === 100) status.textContent = '🌟 EXCELLENT!';
+    else if (pct >= threshold) status.textContent = '✅ GREAT!';
+    else status.textContent = '💪 Try again!';
+    status.className = 'summary-status ' + (pct >= threshold ? 'passed' : 'failed');
+    
+    // Errores
+    const review = document.getElementById('summary-review');
+    const reviewList = document.getElementById('summary-review-list');
+    if (session.wrongList.length > 0) {
+      review.classList.remove('hidden');
+      reviewList.innerHTML = '';
+      session.wrongList.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${item.word}</strong> — you wrote: <em>${item.yours || '(empty)'}</em>`;
+        reviewList.appendChild(li);
+      });
+    } else review.classList.add('hidden');
+    
+    // Ocultar NEXT PHASE
+    document.getElementById('btn-next-phase').style.display = 'none';
+    
+    UI.show('screen-phase-summary');
+    
+    // Botón RETRY como Home
+    const retryBtn = document.getElementById('btn-retry-phase');
+    retryBtn.textContent = '🏠 Home';
+    retryBtn.onclick = () => {
+      session = null;
+      selectedChildId = null;
+      renderHome();
+      UI.show('screen-home');
+    };
+    
+    session = null;
   }
 
-  function playAgain() {
-    if (!game) return;
-    start(game.childId, game.mode);
-  }
+  function getSession() { return session; }
+  function clear() { session = null; stopTimer(); }
 
-  function shuffle(arr) { for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
-
-  return { setup, start, check, playAudio, playAgain };
+  return { start, playAudio, check, getSession, clear };
 })();
 
 /* ============================================================
@@ -4242,8 +4426,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-check').addEventListener('click', () => {
-    const mg = MasterGame.getSession();
-    if (mg) MasterGame.check();
+    if (TimeAttack.getSession()) TimeAttack.check();
+    else if (MasterGame.getSession()) MasterGame.check();
     else Game.check();
   });
 
@@ -4251,85 +4435,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnListenNormal = document.getElementById('btn-listen-normal');
   const btnListenSlow = document.getElementById('btn-listen-slow');
   if (btnListenNormal) btnListenNormal.addEventListener('click', () => {
-    const mg = MasterGame.getSession();
-    if (mg) MasterGame.playAudio(1.0);
+    if (TimeAttack.getSession()) TimeAttack.playAudio(1.0);
+    else if (MasterGame.getSession()) MasterGame.playAudio(1.0);
     else Game.playAudio(1.0);
   });
   if (btnListenSlow) btnListenSlow.addEventListener('click', () => {
-    const mg = MasterGame.getSession();
-    if (mg) MasterGame.playAudio(0.3);
+    if (TimeAttack.getSession()) TimeAttack.playAudio(0.3);
+    else if (MasterGame.getSession()) MasterGame.playAudio(0.3);
     else Game.playAudio(0.3);
   });
-  document.getElementById('answer-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const mg = MasterGame.getSession();
-      if (mg) MasterGame.check();
-      else Game.check();
-    }
-  });
-  document.getElementById('btn-game-back').addEventListener('click', () => {
-    Speech.stop();
-    // Si estamos en Master Mode, salir directo
-    if (MasterGame.getSession()) {
-      selectedChildId = null;
-      renderHome();
-      UI.show('screen-home');
-      return;
-    }
-    const session = Game.getSession();
-    if (!session) { UI.back(); return; }
-    const total = session.order ? session.order.length : 0;
-    const current = (session.index || 0) + 1;
-    const phaseNames = { 2: 'Phase 2: Copy', 3: 'Phase 3: Listen & Copy', 4: 'Phase 4: Listen Only' };
-    const phaseName = phaseNames[session.phase] || 'Phase';
-    UI.modal(`
-      <div class="pause-modal-content">
-        <h2>⏸️ Pause</h2>
-        <div class="pause-modal-info">
-          You're in <strong>${phaseName}</strong><br>
-          Word <strong>${current}</strong> of <strong>${total}</strong>
-        </div>
-        <p class="pause-modal-note">Progress will be saved automatically.</p>
-        <div class="pause-modal-actions">
-          <button class="btn-primary" id="modal-continue">▶️ Continue</button>
-          <button class="btn-success" id="modal-save-exit">🏠 Save & Exit</button>
-        </div>
-      </div>
-    `);
-    document.getElementById('modal-continue').addEventListener('click', () => {
-      Audio.click();
-      UI.closeModal();
-      setTimeout(() => {
-        const input = document.getElementById('answer-input');
-        if (input) input.focus();
-      }, 100);
-    });
-    document.getElementById('modal-save-exit').addEventListener('click', () => {
-      Audio.click();
-      try { Game.saveProgress && Game.saveProgress(); } catch(e) { console.warn('saveProgress no expuesto', e); }
-      UI.closeModal();
-      UI.toast('💾 Progress saved!', 'success');
-      setTimeout(() => {
-        selectedChildId = null;
-        renderHome();
-        UI.show('screen-home');
-      }, 300);
-    });
-  });
-  document.getElementById('btn-next-word').addEventListener('click', () => {
-    const mg = MasterGame.getSession();
-    const g = Game.getSession();
-    // Priorizar: si hay sesión de Game activa, usar esa; si no, la de Master
-    if (g) Game.nextWord();
-    else if (mg) MasterGame.nextWord();
-  });
-  document.getElementById('btn-hear-again').addEventListener('click', () => {
-    const w = document.getElementById('feedback-correction').dataset.word;
-    if (w) Speech.say(w);
-  });
-  document.getElementById('btn-retry-phase').addEventListener('click', () => Game.retryPhase());
-  document.getElementById('btn-next-phase').addEventListener('click', () => Game.nextPhase());
-  document.getElementById('btn-back-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
 
   // Master menu
   document.querySelectorAll('[data-master]').forEach(b => {
@@ -4338,19 +4452,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Time Attack
   document.getElementById('btn-time-check').addEventListener('click', () => TimeAttack.check());
-  document.getElementById('time-answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') TimeAttack.check(); });
-  document.getElementById('btn-time-audio').addEventListener('click', () => TimeAttack.playAudio());
-  document.getElementById('btn-time-back').addEventListener('click', () => { location.reload(); });
-  document.getElementById('btn-time-again').addEventListener('click', () => TimeAttack.playAgain());
-  document.getElementById('btn-time-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
+  // (listeners del Time Attack antiguo eliminados — usa el nuevo módulo)
 
   // Duel
   document.getElementById('btn-duel-start').addEventListener('click', () => Duel.start());
   document.getElementById('btn-duel-check').addEventListener('click', () => Duel.check());
-  document.getElementById('duel-answer-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') Duel.check(); });
-  document.getElementById('btn-duel-audio').addEventListener('click', () => Duel.playAudio());
-  document.getElementById('btn-duel-back').addEventListener('click', () => { location.reload(); });
-  document.getElementById('btn-duel-home').addEventListener('click', () => { selectedChildId = null; renderHome(); UI.show('screen-home'); });
+  // (listeners del Duel antiguo eliminados)
 
   // Parent
   document.getElementById('btn-champion-close').addEventListener('click', () => {
