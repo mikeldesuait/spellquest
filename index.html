@@ -1709,7 +1709,9 @@ function checkCurrentWeekStatus(child) {
 function getTotalWeeks(child) {
   const real = (child.weeksCompleted || []).length;
   const bonus = child.manualWeeksBonus || 0;
-  return Math.max(0, real + bonus);
+  const medalWeeks = (child.weeklyMedals || []).length;
+  // Cuenta el máximo entre semanas completadas y medallas (no duplica)
+  return Math.max(0, Math.max(real, medalWeeks) + bonus);
 }
 
 /* ============================================================
@@ -1983,9 +1985,9 @@ const DailyPoints = (() => {
     
     // 📅 Guardar en histórico diario (para el cálculo del campeón de la semana)
     if (actual > 0) {
-      const today = today();
+      const todayStr = today();
       if (!child.dailyPointsHistory) child.dailyPointsHistory = {};
-      child.dailyPointsHistory[today] = (child.dailyPointsHistory[today] || 0) + actual;
+      child.dailyPointsHistory[todayStr] = (child.dailyPointsHistory[todayStr] || 0) + actual;
     }
     
     return { actual, capped: actual < earned, remaining: max - child.dailyPoints[bucket] };
@@ -2828,10 +2830,13 @@ const Master = (() => {
    ============================================================ */
 const MasterGame = (() => {
   let session = null;
+  let isChecking = false;  // ← FIX: era compartida con Game, ahora es propia
 
   function start(childId, words) {
     const parsed = Words.parse(words.join('\n'));
     if (parsed.length === 0) { UI.toast('No valid words', 'error'); return; }
+    
+    isChecking = false;  // ← FIX: resetear al arrancar
     
     session = {
       childId,
@@ -2878,28 +2883,52 @@ const MasterGame = (() => {
     Speech.say(wordObj.alts.join('/'), rate || 1.0);
   }
 
-  let isChecking = false;
   function check() {
-    if (isChecking) return;
-    isChecking = true;
-    const input = document.getElementById('answer-input');
-    const checkBtn = document.getElementById('btn-check');
-    input.disabled = true; checkBtn.disabled = true;
+    if (isChecking) {
+      console.warn('⚠️ MasterGame.check: ya estaba en curso, ignorando');
+      return;
+    }
     
-    const userAnswer = input.value.trim();
+    // GUARD: validar que hay sesión y palabra
+    if (!session || !session.order || session.index >= session.order.length) {
+      console.error('❌ MasterGame.check: sesión inválida', session);
+      isChecking = false;
+      return;
+    }
+    
     const wordObj = session.order[session.index];
-    const result = Words.evaluate(userAnswer, wordObj);
+    if (!wordObj) {
+      console.error('❌ MasterGame.check: no hay palabra en index', session.index);
+      isChecking = false;
+      return;
+    }
     
-    if (result.correct) {
-      session.correctCount++;
-      saveProgress();
-      Audio.correct(); UI.confetti();
-      showFeedback(true, wordObj, userAnswer);
-    } else {
-      session.wrongList.push({ word: wordObj.display, yours: userAnswer });
-      saveProgress();
-      Audio.wrong();
-      showFeedback(false, wordObj, userAnswer);
+    isChecking = true;
+    
+    try {
+      const input = document.getElementById('answer-input');
+      const checkBtn = document.getElementById('btn-check');
+      input.disabled = true; checkBtn.disabled = true;
+      
+      const userAnswer = input.value.trim();
+      const result = Words.evaluate(userAnswer, wordObj);
+      
+      if (result.correct) {
+        session.correctCount++;
+        Audio.correct(); UI.confetti();
+        showFeedback(true, wordObj, userAnswer);
+      } else {
+        session.wrongList.push({ word: wordObj.display, yours: userAnswer });
+        Audio.wrong();
+        showFeedback(false, wordObj, userAnswer);
+      }
+    } catch(e) {
+      console.error('❌ Error en MasterGame.check:', e);
+      isChecking = false;
+      const input = document.getElementById('answer-input');
+      const checkBtn = document.getElementById('btn-check');
+      if (input) input.disabled = false;
+      if (checkBtn) checkBtn.disabled = false;
     }
   }
 
@@ -2927,7 +2956,8 @@ const MasterGame = (() => {
   }
 
   function nextWord() {
-    isChecking = false;
+    isChecking = false;  // reset por si acaso
+    if (!session) return;
     session.index++;
     if (session.index >= session.order.length) endPhase();
     else { renderWord(); UI.show('screen-game'); }
