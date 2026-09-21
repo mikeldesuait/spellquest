@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no" class="notranslate">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<meta name="googlebot" content="notranslate">
+<meta http-equiv="Content-Language" content="en">
 <title>SpellQuest — A spelling adventure for kids</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1060,7 +1063,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   <div class="game-body">
     <p id="time-instruction" class="subtitle">📝 Copy this word:</p>
     <div id="time-word-display" class="word-display">
-      <span id="time-word-text">apple</span>
+      <span id="time-word-text" translate="no">apple</span>
       <button id="btn-time-audio" class="btn-icon hidden">🔊</button>
     </div>
     <input type="text" id="time-answer-input" class="answer-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -1122,7 +1125,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <p id="duel-turn" class="subtitle" style="font-weight:700; font-size:1.3rem; color:var(--primary);">Turn: Player 1</p>
     <p id="duel-instruction" class="subtitle">📝 Copy this word:</p>
     <div id="duel-word-display" class="word-display">
-      <span id="duel-word-text">apple</span>
+      <span id="duel-word-text" translate="no">apple</span>
       <button id="btn-duel-audio" class="btn-icon hidden">🔊</button>
     </div>
     <input type="text" id="duel-answer-input" class="answer-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -1166,7 +1169,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
   <div class="game-body">
     <p id="game-instruction" class="subtitle">📝 Copy this word:</p>
     <div id="word-display" class="word-display">
-      <span id="word-text">apple</span>
+      <span id="word-text" translate="no">apple</span>
     </div>
     <p class="listen-hint">Listen again</p>
     <div class="listen-buttons">
@@ -1192,8 +1195,8 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <p id="feedback-points" class="feedback-points">+1 point</p>
     <p id="feedback-streak" class="feedback-streak"></p>
     <div id="feedback-correction" class="feedback-correction hidden">
-      <p>You wrote: <strong id="feedback-yours">—</strong></p>
-      <p>Correct is: <strong id="feedback-correct">—</strong></p>
+      <p>You wrote: <strong id="feedback-yours" translate="no">—</strong></p>
+      <p>Correct is: <strong id="feedback-correct" translate="no">—</strong></p>
       <button id="btn-hear-again" class="btn-secondary">🔊 Listen again</button>
     </div>
     <button id="btn-next-word" class="btn-success big">➡ NEXT</button>
@@ -1213,7 +1216,7 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
     <p id="summary-status" class="summary-status">✅ GREAT!</p>
     <div id="summary-review" class="summary-review hidden">
       <h3>Words to review:</h3>
-      <ul id="summary-review-list"></ul>
+      <ul id="summary-review-list" translate="no"></ul>
     </div>
     <div class="summary-actions">
       <button id="btn-retry-phase" class="btn-secondary">🔁 RETRY</button>
@@ -1539,6 +1542,18 @@ button:active { transform: translateY(4px); box-shadow: 0 2px 0 !important; }
         <li>Configura recompensas realistas y alcanzables</li>
         <li>Haz <strong>backup periódico</strong> (una vez al mes) por si acaso</li>
       </ul>
+
+      <h3>🌐 Idioma y traductor</h3>
+      <p>La app muestra las <strong>palabras en inglés</strong> (para inmersión), y el panel de padres está en español.</p>
+      <p>⚠️ <strong>Si tu navegador traduce automáticamente la página</strong>, las palabras en inglés podrían convertirse a otro idioma y romper el juego (por ejemplo, <code>apple</code> se traduciría a <code>manzana</code>).</p>
+      <p><strong>Solución:</strong> desactiva el traductor para esta página:</p>
+      <ul>
+        <li><strong>Chrome:</strong> pulsa el icono del traductor en la barra → "Original" o "No traducir nunca este sitio"</li>
+        <li><strong>Safari:</strong> pulsa el icono "aA" en la barra → "Traducción" → "No traducir"</li>
+        <li><strong>Edge:</strong> pulsa el icono del traductor → "Nunca traducir este sitio"</li>
+        <li><strong>Firefox:</strong> pulsa el icono del traductor → "No traducir nunca esta página"</li>
+      </ul>
+      <p>La app ya incluye <code>translate="no"</code> y <code>meta notranslate</code> para pedir a los navegadores que no la traduzcan, pero algunos usuarios pueden tener activada la traducción automática forzada.</p>
 
       <h3>❓ Preguntas frecuentes</h3>
       <ul>
